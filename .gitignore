@@ -59,6 +59,6 @@ index.html
 manifest.json
 sw.js
 vite.config.ts
-tsconfig.json
 types.ts
 constants.ts
+

@@ -1,0 +1,7 @@
+{
+  "name": " Smart Point of Sale",
+  "description": "A modern, intuitive Point of Sale (POS) application interface designed with React and Tailwind CSS. It features product management, a dynamic sales cart, sales analytics, and multi-language support. It leverages the Gemini API to provide intelligent sales insights.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

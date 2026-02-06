@@ -1,0 +1,42 @@
+{
+  "name": "smart-point-of-sale",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:server": "npx ts-node server/server.ts",
+    "build": "vite build",
+    "preview": "vite preview",
+    "db:setup": "psql -U postgres -d postgres -f database/setup.sql",
+    "db:schema": "psql -U postgres -d gemini_pos_dev -f database/schema.sql"
+  },
+  "dependencies": {
+    "@google/genai": "^1.11.0",
+    "@supabase/supabase-js": "2.39.7",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/qrcode": "^1.5.6",
+    "@zxing/browser": "0.1.5",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "jsbarcode": "3.11.6",
+    "jspdf": "2.5.1",
+    "pg": "^8.16.3",
+    "qrcode": "^1.5.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.2.3",
+    "react-easy-crop": "5.0.7",
+    "react-markdown": "9.0.1",
+    "recharts": "^3.1.0",
+    "ts-node": "^10.9.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

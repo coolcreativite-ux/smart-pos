@@ -5,22 +5,19 @@ import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 
 // Charger les variables d'environnement
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env.production' });
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Configuration PostgreSQL
+// Configuration PostgreSQL - Utiliser DATABASE_URL de Coolify/Supabase
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'gemini_pos_dev',
-  password: process.env.DB_PASSWORD || 'admin',
-  port: parseInt(process.env.DB_PORT || '5432'),
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 // Test de connexion

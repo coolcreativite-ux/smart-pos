@@ -2,10 +2,9 @@
   "name": "smart-pos-backend",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
   "scripts": {
     "dev": "tsx watch server.ts",
-    "start": "node --loader ts-node/esm server.ts",
+    "start": "node dist/server.js",
     "build": "tsc",
     "db:setup": "psql -U postgres -d postgres -f ../database/setup.sql",
     "db:schema": "psql -U postgres -d gemini_pos_dev -f ../database/schema.sql"

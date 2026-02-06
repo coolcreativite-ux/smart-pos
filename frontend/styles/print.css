@@ -1,0 +1,247 @@
+/* Styles spéciaux pour l'impression des tickets */
+
+@media print {
+  /* Configuration de la page pour tickets thermiques 80mm */
+  @page {
+    margin: 0;
+    size: 80mm auto;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  /* Reset général pour l'impression */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Corps de la page */
+  body {
+    margin: 0 !important;
+    padding: 4mm !important;
+    width: 80mm !important;
+    background: white !important;
+    color: black !important;
+    font-family: 'Courier New', monospace !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Masquer tout sauf le ticket */
+  body > *:not(#printable-receipt) {
+    display: none !important;
+  }
+
+  /* Masquer tous les éléments sauf le ticket */
+  #root > *:not(#printable-receipt) {
+    display: none !important;
+  }
+
+  /* Afficher uniquement le ticket */
+  #printable-receipt {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    color: black !important;
+    position: static !important;
+    visibility: visible !important;
+  }
+
+  /* S'assurer que le ticket est visible */
+  #printable-receipt * {
+    visibility: visible !important;
+    display: block !important;
+  }
+
+  /* Exceptions pour les éléments inline */
+  #printable-receipt span,
+  #printable-receipt strong,
+  #printable-receipt em,
+  #printable-receipt b {
+    display: inline !important;
+  }
+
+  /* Flexbox pour certains éléments */
+  #printable-receipt .flex {
+    display: flex !important;
+  }
+
+  /* Styles pour les éléments du ticket */
+  .receipt-header {
+    text-align: center;
+    margin-bottom: 12px;
+    page-break-inside: avoid;
+  }
+
+  .receipt-line {
+    border-bottom: 1px dashed #000 !important;
+    margin: 8px 0;
+    padding-bottom: 4px;
+    page-break-inside: avoid;
+  }
+
+  .receipt-footer {
+    text-align: center;
+    margin-top: 16px;
+    border-top: 2px solid #000 !important;
+    padding-top: 8px;
+    page-break-inside: avoid;
+  }
+
+  /* Amélioration des images (logos) */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+    -webkit-filter: brightness(0) contrast(2) !important;
+    filter: brightness(0) contrast(2) !important;
+    display: block !important;
+  }
+
+  /* Amélioration des bordures et séparateurs */
+  .border-black {
+    border-color: #000 !important;
+  }
+
+  .border-dashed {
+    border-style: dashed !important;
+  }
+
+  /* QR Code - Optimisation pour imprimantes thermiques */
+  canvas {
+    max-width: 48px !important;
+    max-height: 48px !important;
+    image-rendering: pixelated !important;
+    image-rendering: -moz-crisp-edges !important;
+    image-rendering: crisp-edges !important;
+    display: block !important;
+  }
+
+  /* Éviter les coupures de page dans les sections importantes */
+  .no-page-break {
+    page-break-inside: avoid;
+  }
+
+  /* Forcer les sauts de page si nécessaire */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+  }
+
+  /* Styles pour les tableaux */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    padding: 2px 4px !important;
+    border: none !important;
+  }
+
+  /* Amélioration de la lisibilité */
+  .font-bold {
+    font-weight: bold !important;
+  }
+
+  .font-black {
+    font-weight: 900 !important;
+  }
+
+  .uppercase {
+    text-transform: uppercase !important;
+  }
+
+  /* Couleurs pour l'impression - Conversion en noir/blanc */
+  .text-red-600 {
+    color: #000 !important;
+    font-style: italic !important;
+  }
+
+  .text-emerald-500,
+  .text-emerald-600 {
+    color: #000 !important;
+    font-weight: bold !important;
+  }
+
+  .text-indigo-600 {
+    color: #000 !important;
+    font-weight: bold !important;
+  }
+
+  .text-amber-600,
+  .text-amber-700 {
+    color: #000 !important;
+    font-weight: bold !important;
+  }
+
+  /* Masquer les éléments non nécessaires à l'impression */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Optimisation pour les imprimantes thermiques */
+  .thermal-optimized {
+    font-family: 'Courier New', monospace !important;
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+  }
+
+  /* Amélioration des séparateurs pour imprimantes thermiques */
+  .receipt-separator {
+    border-top: 1px dashed #000 !important;
+    margin: 4px 0 !important;
+    height: 1px !important;
+  }
+
+  /* Optimisation des espaces pour économiser le papier */
+  .compact-spacing {
+    margin: 2px 0 !important;
+    padding: 1px 0 !important;
+  }
+
+  /* Style pour les codes-barres et QR codes */
+  .barcode-container {
+    text-align: center !important;
+    margin: 8px 0 !important;
+  }
+
+  /* Amélioration du contraste pour les imprimantes thermiques */
+  .high-contrast {
+    color: #000 !important;
+    background: #fff !important;
+    font-weight: bold !important;
+  }
+}
+
+/* Styles pour la prévisualisation (non-print) */
+@media screen {
+  .print-preview {
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    line-height: 1.2;
+    max-width: 80mm;
+    margin: 0 auto;
+    background: white;
+    color: black;
+    padding: 4mm;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+
+  /* Simulation du papier thermique */
+  .thermal-paper-simulation {
+    background: #f8f8f8;
+    border: 1px dashed #ccc;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    line-height: 1.2;
+    padding: 8px;
+    margin: 8px 0;
+  }
+}

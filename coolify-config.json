@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "services": {
+    "backend": {
+      "name": "smart-pos-backend",
+      "type": "dockerfile",
+      "dockerfile": "backend/Dockerfile",
+      "buildPath": "backend",
+      "port": 3001,
+      "healthcheck": {
+        "path": "/health",
+        "interval": 30
+      },
+      "env": {
+        "NODE_ENV": "production",
+        "PORT": "3001"
+      }
+    },
+    "frontend": {
+      "name": "smart-pos-frontend",
+      "type": "dockerfile",
+      "dockerfile": "frontend/Dockerfile",
+      "buildPath": "frontend",
+      "port": 80,
+      "dependsOn": ["backend"]
+    }
+  }
+}

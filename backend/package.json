@@ -1,0 +1,30 @@
+{
+  "name": "smart-pos-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch server.ts",
+    "start": "node --loader ts-node/esm server.ts",
+    "build": "tsc",
+    "db:setup": "psql -U postgres -d postgres -f ../database/setup.sql",
+    "db:schema": "psql -U postgres -d gemini_pos_dev -f ../database/schema.sql"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.39.7",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "pg": "^8.16.3",
+    "ts-node": "^10.9.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.14.0",
+    "tsx": "^4.7.0",
+    "typescript": "~5.8.2"
+  }
+}

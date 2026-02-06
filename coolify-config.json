@@ -1,5 +1,6 @@
 {
   "version": "1.0",
+  "domain": "cooldigital.africa",
   "services": {
     "backend": {
       "name": "smart-pos-backend",
@@ -7,6 +8,8 @@
       "dockerfile": "backend/Dockerfile",
       "buildPath": "backend",
       "port": 3001,
+      "domain": "api.smartpos.cooldigital.africa",
+      "https": true,
       "healthcheck": {
         "path": "/health",
         "interval": 30
@@ -22,6 +25,8 @@
       "dockerfile": "frontend/Dockerfile",
       "buildPath": "frontend",
       "port": 80,
+      "domain": "smartpos.cooldigital.africa",
+      "https": true,
       "dependsOn": ["backend"]
     }
   }

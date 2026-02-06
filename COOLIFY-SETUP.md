@@ -1,5 +1,9 @@
 # Configuration Coolify - Smart POS
 
+## 🌐 Domaines
+- **Frontend** : https://smartpos.cooldigital.africa
+- **Backend** : https://api.smartpos.cooldigital.africa
+
 ## Repository GitHub
 https://github.com/coolcreativite-ux/smart-pos.git
 
@@ -20,6 +24,8 @@ Le projet est organisé en monorepo avec 2 services indépendants :
 - **Build Context** : backend
 - **Dockerfile Path** : backend/Dockerfile
 - **Port** : 3001
+- **Domain** : api.smartpos.cooldigital.africa
+- **HTTPS** : Activé (Let's Encrypt)
 
 ### Variables d'environnement
 ```env
@@ -46,16 +52,16 @@ DATABASE_URL=postgresql://postgres.lsujhpaxdsirlnllangt:kRzdl8ia5kSMJ4UV@aws-1-e
 - **Build Context** : frontend
 - **Dockerfile Path** : frontend/Dockerfile
 - **Port** : 80
+- **Domain** : smartpos.cooldigital.africa
+- **HTTPS** : Activé (Let's Encrypt)
 
 ### Variables d'environnement
 ```env
-VITE_API_URL=https://[URL-DE-VOTRE-BACKEND]
+VITE_API_URL=https://api.smartpos.cooldigital.africa
 VITE_SUPABASE_URL=https://lsujhpaxdsirlnllangt.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzdWpocGF4ZHNpcmxubGxhbmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzODQyNjgsImV4cCI6MjA4NTk2MDI2OH0.PT_-sZIjMODHmcndBjH16UWbco6L0ca6BsVmbaNvQ30
 VITE_GEMINI_API_KEY=VOTRE_CLE_GEMINI
 ```
-
-**Important** : Remplacez `[URL-DE-VOTRE-BACKEND]` par l'URL générée par Coolify pour le backend.
 
 ---
 

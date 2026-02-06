@@ -29,10 +29,6 @@ RUN npm ci --only=production
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
-# Copy other necessary files
-COPY database ./database
-COPY scripts ./scripts
-
 # Expose port
 EXPOSE 3001
 

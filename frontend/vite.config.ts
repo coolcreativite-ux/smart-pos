@@ -11,7 +11,13 @@ export default defineConfig(({ mode }) => {
         outDir: 'dist',
         emptyOutDir: true,
         rollupOptions: {
-          input: './index.html'
+          input: './index.html',
+          output: {
+            // Cache-busting: ajouter un hash unique à chaque fichier
+            entryFileNames: 'assets/[name].[hash].js',
+            chunkFileNames: 'assets/[name].[hash].js',
+            assetFileNames: 'assets/[name].[hash].[ext]'
+          }
         }
       },
       server: {

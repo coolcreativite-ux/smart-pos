@@ -39,7 +39,7 @@ async function cleanProductionDatabase() {
   console.log('Pour continuer, vous devez modifier ce script et décommenter la ligne de confirmation.\n');
   
   // DÉCOMMENTEZ LA LIGNE SUIVANTE POUR ACTIVER LE NETTOYAGE
-    const CONFIRM_PRODUCTION_CLEANUP = true;
+    //const CONFIRM_PRODUCTION_CLEANUP = true;
   
   if (typeof CONFIRM_PRODUCTION_CLEANUP === 'undefined') {
     console.log('❌ Nettoyage annulé pour des raisons de sécurité.');

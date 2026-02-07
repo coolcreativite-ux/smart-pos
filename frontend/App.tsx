@@ -19,6 +19,7 @@ import { ActionLogProvider } from './contexts/ActionLogContext';
 import { StoreProvider } from './contexts/StoreContext';
 import { CashDrawerProvider } from './contexts/CashDrawerContext';
 import { SupplierProvider } from './contexts/SupplierContext';
+import { UpdateNotification } from './components/UpdateNotification';
 
 const AppContent: React.FC = () => {
     const { user } = useAuth();
@@ -55,6 +56,7 @@ const App: React.FC = () => {
                                   <ToastProvider>
                                     <div className="min-h-screen font-sans">
                                       <AppContent />
+                                      <UpdateNotification />
                                     </div>
                                   </ToastProvider>
                                 </ThemeProvider>

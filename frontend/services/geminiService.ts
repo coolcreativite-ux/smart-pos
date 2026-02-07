@@ -26,27 +26,34 @@ export const getSalesInsights = async (salesData: string): Promise<string> => {
     }
 };
 
-export const generateWelcomeEmail = async (userData: { firstName: string, lastName: string, username: string, storeName: string, role: string }): Promise<string> => {
+export const generateWelcomeEmail = async (userData: { firstName: string, lastName: string, username: string, password?: string, storeName: string, role: string }): Promise<string> => {
     if (!ai || !apiKey) {
-        return `OBJET : Bienvenue sur Gemini POS - Vos 14 jours d'essai BUSINESS PRO sont activés !\n---\nCORPS : Bonjour ${userData.firstName} ${userData.lastName},\n\nFélicitations ! Votre compte Gemini POS a été créé avec succès.\n\n**Informations de connexion :**\n- Identifiant : ${userData.username}\n- Enseigne : ${userData.storeName}\n- Rôle : ${userData.role}\n\nVotre essai gratuit de 14 jours sur notre offre BUSINESS PRO est maintenant actif. Profitez de toutes les fonctionnalités avancées !\n\nCordialement,\nL'équipe Gemini POS`;
+        const passwordInfo = userData.password ? `\n- Mot de passe temporaire : ${userData.password}\n⚠️ Veuillez changer ce mot de passe lors de votre première connexion.` : '';
+        return `OBJET : Bienvenue sur Gemini POS - Vos 14 jours d'essai BUSINESS PRO sont activés !\n---\nCORPS : Bonjour ${userData.firstName} ${userData.lastName},\n\nFélicitations ! Votre compte Gemini POS a été créé avec succès.\n\n**Informations de connexion :**\n- Identifiant : ${userData.username}${passwordInfo}\n- Enseigne : ${userData.storeName}\n- Rôle : ${userData.role}\n\nVotre essai gratuit de 14 jours sur notre offre BUSINESS PRO est maintenant actif. Profitez de toutes les fonctionnalités avancées !\n\nCordialement,\nL'équipe Gemini POS`;
     }
 
     try {
+        const passwordSection = userData.password 
+            ? `\n- Mot de passe temporaire : ${userData.password}\n⚠️ IMPORTANT : Changez ce mot de passe lors de votre première connexion pour des raisons de sécurité.`
+            : '';
+            
         const prompt = `
             Rédige un email de bienvenue professionnel et enthousiaste pour un nouveau client de notre plateforme SaaS "Gemini POS".
             Le client vient de s'inscrire et bénéficie d'un ESSAI GRATUIT de 14 JOURS sur la formule BUSINESS PRO (notre offre la plus complète incluant le multi-boutiques et l'IA).
             
             Informations du client :
             - Nom : ${userData.firstName} ${userData.lastName}
-            - Identifiant : ${userData.username}
+            - Identifiant : ${userData.username}${passwordSection}
             - Enseigne : ${userData.storeName}
             - Rôle : ${userData.role}
 
             Contenu de l'email :
             1. Félicitations pour la création du compte.
-            2. Mentionner que l'accès est déjà activé pour 14 jours sur l'offre BUSINESS PRO.
-            3. Expliquer qu'ils peuvent configurer leurs produits et magasins dès maintenant.
-            4. Rappeler que l'IA Gemini est à leur disposition pour les analyses.
+            2. Afficher clairement les identifiants de connexion (username${userData.password ? ' et mot de passe temporaire' : ''}).
+            ${userData.password ? '3. IMPORTANT : Insister sur le fait de changer le mot de passe temporaire dès la première connexion.' : ''}
+            4. Mentionner que l'accès est déjà activé pour 14 jours sur l'offre BUSINESS PRO.
+            5. Expliquer qu'ils peuvent configurer leurs produits et magasins dès maintenant.
+            6. Rappeler que l'IA Gemini est à leur disposition pour les analyses.
 
             IMPORTANT : Respecte strictement ce format :
             OBJET : [Le sujet de l'email]
@@ -64,7 +71,8 @@ export const generateWelcomeEmail = async (userData: { firstName: string, lastNa
         return response.text || "Erreur de génération du message.";
     } catch (error) {
         console.error("Email generation failed:", error);
-        return `OBJET : Bienvenue sur Gemini POS - Vos 14 jours d'essai BUSINESS PRO sont activés !\n---\nCORPS : Bonjour ${userData.firstName} ${userData.lastName},\n\nVotre compte a été créé avec succès. Profitez de votre essai gratuit sur notre offre Business Pro.`;
+        const passwordInfo = userData.password ? `\n- Mot de passe temporaire : ${userData.password}\n⚠️ Veuillez changer ce mot de passe lors de votre première connexion.` : '';
+        return `OBJET : Bienvenue sur Gemini POS - Vos 14 jours d'essai BUSINESS PRO sont activés !\n---\nCORPS : Bonjour ${userData.firstName} ${userData.lastName},\n\nVotre compte a été créé avec succès. Profitez de votre essai gratuit sur notre offre Business Pro.\n\n**Identifiants de connexion :**\n- Username : ${userData.username}${passwordInfo}`;
     }
 };
 

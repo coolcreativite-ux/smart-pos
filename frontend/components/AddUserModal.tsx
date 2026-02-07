@@ -111,10 +111,17 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
 
     if (sendInvite && isSuperAdmin) {
         try {
+            // Générer un mot de passe aléatoire sécurisé
+            const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase();
+            
+            // Sauvegarder le mot de passe dans formData pour l'utiliser plus tard
+            setFormData(prev => ({ ...prev, password: randomPassword }));
+            
             const message = await generateWelcomeEmail({
                 firstName: formData.firstName,
                 lastName: formData.lastName,
                 username: formData.username,
+                password: randomPassword, // Inclure le mot de passe dans l'email
                 storeName: settings.storeName,
                 role: t(formData.role)
             });
@@ -158,7 +165,8 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
     
     if (success) {
         const finalStoreId = formData.role === UserRole.Owner ? undefined : formData.assignedStoreId;
-        const randomPass = Math.random().toString(36).slice(-8);
+        
+        // Utiliser le mot de passe déjà généré dans formData
         onSave({ 
             username: formData.username,
             email: formData.email,
@@ -167,7 +175,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
             role: formData.role,
             permissions,
             assignedStoreId: finalStoreId,
-            password: randomPass 
+            password: formData.password // Utiliser le mot de passe généré précédemment
         } as Omit<User, 'id'>);
         
         addToast("Invitation envoyée avec succès !", 'success');

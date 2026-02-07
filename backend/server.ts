@@ -93,6 +93,34 @@ function getPermissionsForRole(role: string) {
 
 // ===== ROUTES SPÉCIFIQUES (AVANT LES ROUTES GÉNÉRIQUES) =====
 
+// ===== HEALTH CHECK =====
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Smart POS Backend API',
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/health', async (req, res) => {
+  try {
+    // Vérifier la connexion à la base de données
+    await pool.query('SELECT 1');
+    res.json({ 
+      status: 'healthy', 
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(503).json({ 
+      status: 'unhealthy', 
+      database: 'disconnected',
+      error: error.message 
+    });
+  }
+});
+
 // ===== ACTION LOGS ENDPOINTS =====
 app.get('/api/action-logs', async (req, res) => {
   console.log('🔍 Route /api/action-logs appelée');

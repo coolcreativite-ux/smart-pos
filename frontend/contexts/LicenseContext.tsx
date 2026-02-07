@@ -6,12 +6,14 @@ import { API_URL } from '../config';
 
 interface LicenseContextType {
   licenses: License[];
+  isLoading: boolean;
   generateLicense: (assignedTo: string, months: number, plan?: License['plan']) => Promise<License>;
   generateTrialLicense: (assignedTo: string) => License;
   revokeLicense: (id: string) => void;
   validateLicense: (key: string, tenantId?: number) => boolean;
   activateLicenseForTenant: (key: string, tenantId: number) => Promise<boolean>;
   isTenantActivated: (tenantId: number) => boolean;
+  reloadLicenses: () => Promise<void>;
 }
 
 export const LicenseContext = createContext<LicenseContextType | undefined>(undefined);
@@ -21,53 +23,30 @@ export const LicenseProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isLoading, setIsLoading] = useState(true);
 
   // Charger les licences depuis la base de données
-  useEffect(() => {
-    const loadLicenses = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/licenses`);
-        if (response.ok) {
-          const dbLicenses = await response.json();
-          const formattedLicenses = dbLicenses.map((l: any) => ({
-            id: l.id,
-            key: l.key,
-            tenantId: l.tenant_id,
-            assignedTo: l.assigned_to,
-            createdAt: new Date(l.created_at),
-            expiryDate: new Date(l.expiry_date),
-            isActive: l.is_active,
-            plan: l.plan
-          }));
-          setLicenses(formattedLicenses);
-        } else {
-          // Fallback vers localStorage si l'API n'est pas disponible
-          const saved = localStorage.getItem('posLicenses');
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            setLicenses(parsed.map((l: any) => ({ 
-              ...l, 
-              createdAt: new Date(l.createdAt),
-              expiryDate: new Date(l.expiryDate)
-            })));
-          } else {
-            // Licence de démo par défaut pour le tenant 1
-            const defaultExpiry = new Date();
-            defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 10);
-            
-            setLicenses([{
-              id: 'default-demo',
-              key: VALID_LICENSE_KEY,
-              tenantId: 1,
-              assignedTo: 'Demo Store',
-              createdAt: new Date(),
-              expiryDate: defaultExpiry,
-              isActive: true,
-              plan: 'ENTERPRISE'
-            }]);
-          }
-        }
-      } catch (error) {
-        console.warn('Erreur chargement licences, utilisation localStorage:', error);
-        // Fallback vers localStorage
+  const loadLicenses = useCallback(async () => {
+    try {
+      console.log('[License] Chargement des licences depuis l\'API...');
+      const response = await fetch(`${API_URL}/api/licenses`);
+      if (response.ok) {
+        const dbLicenses = await response.json();
+        console.log('[License] Licences reçues:', dbLicenses.length);
+        
+        const formattedLicenses = dbLicenses.map((l: any) => ({
+          id: l.id,
+          key: l.key,
+          tenantId: l.tenant_id,
+          assignedTo: l.assigned_to,
+          createdAt: new Date(l.created_at),
+          expiryDate: new Date(l.expiry_date),
+          isActive: l.is_active,
+          plan: l.plan
+        }));
+        
+        setLicenses(formattedLicenses);
+        console.log('[License] Licences chargées:', formattedLicenses);
+      } else {
+        console.warn('[License] Erreur API, fallback localStorage');
+        // Fallback vers localStorage si l'API n'est pas disponible
         const saved = localStorage.getItem('posLicenses');
         if (saved) {
           const parsed = JSON.parse(saved);
@@ -76,29 +55,28 @@ export const LicenseProvider: React.FC<{ children: ReactNode }> = ({ children })
             createdAt: new Date(l.createdAt),
             expiryDate: new Date(l.expiryDate)
           })));
-        } else {
-          // Licence de démo par défaut pour le tenant 1
-          const defaultExpiry = new Date();
-          defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 10);
-          
-          setLicenses([{
-            id: 'default-demo',
-            key: VALID_LICENSE_KEY,
-            tenantId: 1,
-            assignedTo: 'Demo Store',
-            createdAt: new Date(),
-            expiryDate: defaultExpiry,
-            isActive: true,
-            plan: 'ENTERPRISE'
-          }]);
         }
-      } finally {
-        setIsLoading(false);
       }
-    };
-
-    loadLicenses();
+    } catch (error) {
+      console.warn('[License] Erreur chargement licences:', error);
+      // Fallback vers localStorage
+      const saved = localStorage.getItem('posLicenses');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setLicenses(parsed.map((l: any) => ({ 
+          ...l, 
+          createdAt: new Date(l.createdAt),
+          expiryDate: new Date(l.expiryDate)
+        })));
+      }
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadLicenses();
+  }, [loadLicenses]);
 
   useEffect(() => {
     localStorage.setItem('posLicenses', JSON.stringify(licenses));
@@ -258,19 +236,44 @@ export const LicenseProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, []);
 
   const isTenantActivated = useCallback((tenantId: number): boolean => {
+      // Si on est encore en train de charger, on considère comme non activé
+      if (isLoading) {
+        console.log('[License] Chargement en cours, tenant non activé temporairement');
+        return false;
+      }
+      
       const now = new Date();
-      return licenses.some(l => l.tenantId === tenantId && l.isActive && now < l.expiryDate);
-  }, [licenses]);
+      const activeLicense = licenses.find(l => 
+        l.tenantId === tenantId && 
+        l.isActive && 
+        now < l.expiryDate
+      );
+      
+      const isActivated = !!activeLicense;
+      console.log(`[License] Vérification tenant ${tenantId}:`, {
+        isActivated,
+        licensesCount: licenses.length,
+        activeLicense: activeLicense ? {
+          key: activeLicense.key,
+          expiryDate: activeLicense.expiryDate,
+          plan: activeLicense.plan
+        } : null
+      });
+      
+      return isActivated;
+  }, [licenses, isLoading]);
 
   return (
     <LicenseContext.Provider value={{ 
-        licenses, 
+        licenses,
+        isLoading,
         generateLicense, 
         generateTrialLicense, 
         revokeLicense, 
         validateLicense,
         activateLicenseForTenant,
-        isTenantActivated
+        isTenantActivated,
+        reloadLicenses: loadLicenses
     }}>
       {children}
     </LicenseContext.Provider>

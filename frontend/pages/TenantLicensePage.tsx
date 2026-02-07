@@ -22,9 +22,22 @@ const TenantLicensePage: React.FC = () => {
     });
 
     const activeLicense = useMemo(() => {
-        const savedKey = localStorage.getItem('active_license_key');
-        return licenses.find(l => l.key === savedKey) || null;
-    }, [licenses]);
+        if (!user) return null;
+        
+        // Chercher la licence active pour le tenant de l'utilisateur
+        const now = new Date();
+        const tenantLicense = licenses.find(l => 
+            l.tenantId === user.tenantId && 
+            l.isActive && 
+            now < l.expiryDate
+        );
+        
+        console.log('[TenantLicense] Recherche licence pour tenant:', user.tenantId);
+        console.log('[TenantLicense] Licences disponibles:', licenses);
+        console.log('[TenantLicense] Licence trouvée:', tenantLicense);
+        
+        return tenantLicense || null;
+    }, [licenses, user]);
 
     const handleActivate = async (e: React.FormEvent) => {
         e.preventDefault();

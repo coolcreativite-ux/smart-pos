@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   });
   const { users } = useUsers();
-  const { activateLicenseForTenant, isTenantActivated } = useLicenses();
+  const { activateLicenseForTenant, isTenantActivated, reloadLicenses } = useLicenses();
 
   const login = useCallback(async (username: string, password: string): Promise<boolean> => {
     try {
@@ -71,6 +71,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           timestamp: Date.now()
         };
         localStorage.setItem('currentUserSession', JSON.stringify(session));
+        
+        // Recharger les licences après la connexion
+        console.log('[Auth] Rechargement des licences après connexion (local)...');
+        await reloadLicenses();
+        
         return true;
       }
 
@@ -84,6 +89,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           timestamp: Date.now()
         };
         localStorage.setItem('currentUserSession', JSON.stringify(session));
+        
+        // Recharger les licences après la connexion
+        console.log('[Auth] Rechargement des licences après connexion...');
+        await reloadLicenses();
+        
         return true;
       }
       
@@ -106,9 +116,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         timestamp: Date.now()
       };
       localStorage.setItem('currentUserSession', JSON.stringify(session));
+      
+      // Recharger les licences après la connexion
+      console.log('[Auth] Rechargement des licences après connexion (fallback)...');
+      await reloadLicenses();
+      
       return true;
     }
-  }, [users]);
+  }, [users, reloadLicenses]);
 
   const activateApp = useCallback(async (key: string): Promise<boolean> => {
     if (!user) return false;

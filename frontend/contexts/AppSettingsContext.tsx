@@ -87,18 +87,31 @@ export const AppSettingsProvider: React.FC<{ children: ReactNode }> = ({ childre
 
     const loadSettings = async () => {
         try {
-            const response = await fetch(`${API_URL}/api/app-settings`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout de 5 secondes
+            
+            const response = await fetch(`${API_URL}/api/app-settings`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            
             if (response.ok) {
                 const data = await response.json();
                 // Merger avec les valeurs par défaut pour éviter les undefined
                 setSettings({ ...DEFAULT_SETTINGS, ...data });
-                console.log('✅ Paramètres app chargés:', data);
+                console.log('✅ Paramètres app chargés depuis l\'API');
             } else {
-                console.warn('⚠️ Impossible de charger les paramètres, utilisation des valeurs par défaut');
+                console.warn('⚠️ API non disponible, utilisation des valeurs par défaut');
+                setSettings(DEFAULT_SETTINGS);
             }
         } catch (error) {
-            console.error('❌ Erreur chargement paramètres app:', error);
-            // Utiliser les valeurs par défaut en cas d'erreur
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.warn('⏱️ Timeout API - utilisation des valeurs par défaut');
+            } else {
+                console.warn('⚠️ API non accessible - utilisation des valeurs par défaut');
+            }
+            // Utiliser les valeurs par défaut en cas d'erreur (mode offline)
+            setSettings(DEFAULT_SETTINGS);
         } finally {
             setIsLoading(false);
         }

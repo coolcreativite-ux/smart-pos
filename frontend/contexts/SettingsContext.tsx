@@ -43,7 +43,14 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/settings/${user.tenantId}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout de 5 secondes
+      
+      const response = await fetch(`${API_URL}/api/settings/${user.tenantId}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
       if (response.ok) {
         const data = await response.json();
         
@@ -61,32 +68,40 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         };
         
         setSettings(dbSettings);
-        console.log('✅ Paramètres chargés depuis la base de données');
+        console.log('✅ Paramètres chargés depuis l\'API');
       } else {
-        console.warn('Impossible de charger les paramètres depuis l\'API, utilisation des paramètres par défaut');
-        // Fallback vers localStorage si l'API échoue
-        const savedSettings = localStorage.getItem('appSettings');
-        if (savedSettings) {
-          const parsed = JSON.parse(savedSettings);
-          setSettings(migrateSettings(parsed));
-        }
+        console.warn('⚠️ API non disponible, utilisation du cache local');
+        loadFromLocalStorage();
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des paramètres:', error);
-      // Fallback vers localStorage en cas d'erreur
-      try {
-        const savedSettings = localStorage.getItem('appSettings');
-        if (savedSettings) {
-          const parsed = JSON.parse(savedSettings);
-          setSettings(migrateSettings(parsed));
-        }
-      } catch (localError) {
-        console.error('Erreur localStorage:', localError);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('⏱️ Timeout API - utilisation du cache local');
+      } else {
+        console.warn('⚠️ API non accessible - mode offline');
       }
+      loadFromLocalStorage();
     } finally {
       setLoading(false);
     }
   }, [user?.tenantId]);
+
+  // Fonction helper pour charger depuis localStorage
+  const loadFromLocalStorage = () => {
+    try {
+      const savedSettings = localStorage.getItem('appSettings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        setSettings(migrateSettings(parsed));
+        console.log('📦 Paramètres chargés depuis le cache local');
+      } else {
+        setSettings(DEFAULT_SETTINGS);
+        console.log('🔧 Utilisation des paramètres par défaut');
+      }
+    } catch (localError) {
+      console.error('❌ Erreur cache local:', localError);
+      setSettings(DEFAULT_SETTINGS);
+    }
+  };
 
   // Sauvegarder les paramètres vers l'API et localStorage
   const updateSettings = useCallback(async (newSettings: Settings) => {

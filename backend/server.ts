@@ -189,16 +189,16 @@ app.post('/api/send-email', async (req, res) => {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error: any = await response.json();
       console.error('❌ Erreur Resend:', error);
       return res.status(500).json({ error: 'Failed to send email', details: error });
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     console.log('✅ Email envoyé via Resend:', data.id);
     
     res.json({ success: true, emailId: data.id });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Erreur envoi email:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }

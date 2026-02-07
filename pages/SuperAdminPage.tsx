@@ -80,7 +80,7 @@ const SuperAdminPage: React.FC = () => {
         setIsDelivering(true);
         
         const lines = sentEmailPreview.split('\n');
-        const subjectLine = lines.find(l => l.toUpperCase().includes('OBJET')) || 'Votre licence Gemini POS';
+        const subjectLine = lines.find(l => l.toUpperCase().includes('OBJET')) || 'Votre licence Smart POS';
         const subject = subjectLine.split(':')[1]?.trim() || subjectLine;
 
         const success = await sendRealEmail(email, subject, sentEmailPreview);
@@ -506,7 +506,7 @@ const SuperAdminPage: React.FC = () => {
                         
                         <div className="flex-grow overflow-y-auto p-8 custom-scrollbar">
                             <p className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest text-center">
-                                {isEditingEmail ? "Éditeur de message (Markdown supporté)" : "Contenu généré par Gemini"}
+                                {isEditingEmail ? "Éditeur de message (Markdown supporté)" : "Contenu généré par IA"}
                             </p>
                             <div className={`rounded-3xl p-6 border transition-all duration-300 ${isEditingEmail ? 'bg-white dark:bg-slate-950 border-indigo-500 shadow-2xl shadow-indigo-500/10' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-inner min-h-[300px]'}`}>
                                 {isEditingEmail ? (

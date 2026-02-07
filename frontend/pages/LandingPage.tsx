@@ -65,7 +65,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2L2 7V17L12 22L22 17V7L12 2Z" />
                             </svg>
                         </div>
-                        <span className="text-xl font-black tracking-tighter uppercase">GEMINI<span className="text-indigo-600">POS</span></span>
+                        <span className="text-xl font-black tracking-tighter uppercase">SMART<span className="text-indigo-600">POS</span></span>
                     </div>
 
                     <div className="hidden md:flex items-center gap-8">

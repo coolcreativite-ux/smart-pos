@@ -117,7 +117,7 @@ const LoginPage: React.FC = () => {
     
     const success = await sendRealEmail(
         email, 
-        "Réinitialisation de votre mot de passe - Gemini POS", 
+        "Réinitialisation de votre mot de passe - Smart POS", 
         "Bonjour, cliquez sur ce lien pour réinitialiser votre mot de passe..."
     );
 
@@ -153,7 +153,7 @@ const LoginPage: React.FC = () => {
             {view === 'login' ? "Connexion" : view === 'register' ? "Inscription" : "Récupération"}
           </h1>
           <p className="mt-2 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-              {view === 'login' ? "Accédez à votre point de vente" : view === 'register' ? "Créez votre instance Gemini POS" : "Retrouvez vos accès"}
+              {view === 'login' ? "Accédez à votre point de vente" : view === 'register' ? "Créez votre instance Smart POS" : "Retrouvez vos accès"}
           </p>
         </div>
 
@@ -294,7 +294,7 @@ const LoginPage: React.FC = () => {
             </form>
         )}
         
-        <p className="text-center text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] pt-4">Gemini POS Cloud v3.1</p>
+        <p className="text-center text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] pt-4">Smart POS Cloud v3.1</p>
       </div>
     </div>
   );

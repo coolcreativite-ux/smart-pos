@@ -69,7 +69,7 @@ const TenantLicensePage: React.FC = () => {
             name: 'Business Pro', 
             price: '250.000', 
             period: '1 An', 
-            features: ['Multi-magasins illimités', 'Insights IA Gemini', 'Support Prioritaire 24/7'],
+            features: ['Multi-magasins illimités', 'Insights IA', 'Support Prioritaire 24/7'],
             isCurrent: activeLicense?.plan === 'BUSINESS_PRO',
             popular: true
         },

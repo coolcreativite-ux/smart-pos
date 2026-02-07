@@ -44,7 +44,7 @@ const ActivationOverlay: React.FC = () => {
                     <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl mb-8 border border-slate-100 dark:border-slate-800">
                         <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed text-sm">
                             {canActivate 
-                                ? "Votre instance Gemini POS n'est pas encore activée. Saisissez votre clé de licence pour débloquer les fonctionnalités de votre boutique." 
+                                ? "Votre instance Smart POS n'est pas encore activée. Saisissez votre clé de licence pour débloquer les fonctionnalités de votre boutique." 
                                 : `Le système est actuellement suspendu. Veuillez contacter le responsable (${user?.tenantId}) pour activer la licence de l'établissement.`}
                         </p>
                     </div>

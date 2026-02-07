@@ -46,7 +46,7 @@ const OrderContactModal: React.FC<OrderContactModalProps> = ({ onClose, method, 
       const url = `https://api.whatsapp.com/send?phone=${SALES_PHONE}&text=${encodedMsg}`;
       window.open(url, '_blank');
     } else {
-      const subject = `Commande Licence Gemini POS - ${formData.plan}`;
+      const subject = `Commande Licence Smart POS - ${formData.plan}`;
       const mailtoUrl = `mailto:${SALES_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullMessage)}`;
       window.location.href = mailtoUrl;
     }

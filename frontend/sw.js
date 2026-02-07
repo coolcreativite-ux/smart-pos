@@ -1,7 +1,7 @@
 
 // Version du cache - INCRÉMENTER À CHAQUE DÉPLOIEMENT
-const CACHE_VERSION = 'v4';
-const CACHE_NAME = `gemini-pos-${CACHE_VERSION}`;
+const CACHE_VERSION = 'v5';
+const CACHE_NAME = `smart-pos-${CACHE_VERSION}`;
 const URLS_TO_CACHE = [
   '/',
   '/index.html',

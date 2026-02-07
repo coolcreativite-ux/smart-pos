@@ -8,8 +8,8 @@
 const EMAIL_PROVIDER = import.meta.env.VITE_EMAIL_PROVIDER || 'simulation'; // 'resend', 'sendgrid', 'smtp', 'simulation'
 const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY;
 const SENDGRID_API_KEY = import.meta.env.VITE_SENDGRID_API_KEY;
-const FROM_EMAIL = import.meta.env.VITE_FROM_EMAIL || 'noreply@geminipos.com';
-const FROM_NAME = import.meta.env.VITE_FROM_NAME || 'Gemini POS';
+const FROM_EMAIL = import.meta.env.VITE_FROM_EMAIL || 'noreply@smartpos.app';
+const FROM_NAME = import.meta.env.VITE_FROM_NAME || 'Smart POS';
 
 /**
  * Envoie un email via Resend (via le backend pour éviter CORS)
@@ -121,13 +121,13 @@ const convertMarkdownToHtml = (markdown: string): string => {
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-                <h1 style="color: white; margin: 0; font-size: 28px;">Gemini POS</h1>
+                <h1 style="color: white; margin: 0; font-size: 28px;">Smart POS</h1>
             </div>
             <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
                 <p style="margin: 12px 0;">${html}</p>
             </div>
             <div style="text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px;">
-                <p>© ${new Date().getFullYear()} Gemini POS. Tous droits réservés.</p>
+                <p>© ${new Date().getFullYear()} Smart POS. Tous droits réservés.</p>
             </div>
         </body>
         </html>

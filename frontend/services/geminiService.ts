@@ -10,7 +10,7 @@ export const getSalesInsights = async (salesData: string): Promise<string> => {
     }
 
     if (!ai || !apiKey) {
-        return "⚠️ Clé API Gemini non configurée. Veuillez ajouter VITE_GEMINI_API_KEY dans votre fichier .env.local";
+        return "⚠️ Clé API IA non configurée. Veuillez ajouter VITE_GEMINI_API_KEY dans votre fichier .env.local";
     }
 
     try {
@@ -29,7 +29,7 @@ export const getSalesInsights = async (salesData: string): Promise<string> => {
 export const generateWelcomeEmail = async (userData: { firstName: string, lastName: string, username: string, password?: string, storeName: string, role: string }): Promise<string> => {
     if (!ai || !apiKey) {
         const passwordInfo = userData.password ? `\n- Mot de passe temporaire : ${userData.password}\n⚠️ Veuillez changer ce mot de passe lors de votre première connexion.` : '';
-        return `OBJET : Bienvenue sur Gemini POS - Vos 14 jours d'essai BUSINESS PRO sont activés !\n---\nCORPS : Bonjour ${userData.firstName} ${userData.lastName},\n\nFélicitations ! Votre compte Gemini POS a été créé avec succès.\n\n**Informations de connexion :**\n- Identifiant : ${userData.username}${passwordInfo}\n- Enseigne : ${userData.storeName}\n- Rôle : ${userData.role}\n\nVotre essai gratuit de 14 jours sur notre offre BUSINESS PRO est maintenant actif. Profitez de toutes les fonctionnalités avancées !\n\nCordialement,\nL'équipe Gemini POS`;
+        return `OBJET : Bienvenue sur Smart POS - Vos 14 jours d'essai BUSINESS PRO sont activés !\n---\nCORPS : Bonjour ${userData.firstName} ${userData.lastName},\n\nFélicitations ! Votre compte Smart POS a été créé avec succès.\n\n**Informations de connexion :**\n- Identifiant : ${userData.username}${passwordInfo}\n- Enseigne : ${userData.storeName}\n- Rôle : ${userData.role}\n\nVotre essai gratuit de 14 jours sur notre offre BUSINESS PRO est maintenant actif. Profitez de toutes les fonctionnalités avancées !\n\nCordialement,\nL'équipe Smart POS`;
     }
 
     try {
@@ -38,7 +38,7 @@ export const generateWelcomeEmail = async (userData: { firstName: string, lastNa
             : '';
             
         const prompt = `
-            Rédige un email de bienvenue professionnel et enthousiaste pour un nouveau client de notre plateforme SaaS "Gemini POS".
+            Rédige un email de bienvenue professionnel et enthousiaste pour un nouveau client de notre plateforme SaaS "Smart POS".
             Le client vient de s'inscrire et bénéficie d'un ESSAI GRATUIT de 14 JOURS sur la formule BUSINESS PRO (notre offre la plus complète incluant le multi-boutiques et l'IA).
             
             Informations du client :

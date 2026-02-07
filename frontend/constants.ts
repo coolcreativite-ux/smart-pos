@@ -1,7 +1,7 @@
 
 import { User, UserRole, Product, Settings, StockChangeReason, Permissions, PromoCode, Customer, Store, Supplier } from './types';
 
-export const VALID_LICENSE_KEY = 'GEMINI-POS-DEMO-LICENSE-KEY';
+export const VALID_LICENSE_KEY = 'SMART-POS-DEMO-LICENSE-KEY';
 
 export const ROLE_PERMISSIONS: { [key in UserRole]: Permissions } = {
   [UserRole.SuperAdmin]: {
@@ -67,7 +67,7 @@ export const MOCK_SUPPLIERS: Supplier[] = [
 
 export const MOCK_USERS: User[] = [
   // Add missing tenantId to all mock users
-  { id: 0, tenantId: 0, username: 'superadmin', email: 'super@gemini.pos', firstName: 'System', lastName: 'Admin', password: 'superpass', role: UserRole.SuperAdmin, permissions: ROLE_PERMISSIONS[UserRole.SuperAdmin] },
+  { id: 0, tenantId: 0, username: 'superadmin', email: 'super@smartpos.app', firstName: 'System', lastName: 'Admin', password: 'superpass', role: UserRole.SuperAdmin, permissions: ROLE_PERMISSIONS[UserRole.SuperAdmin] },
   { id: 1, tenantId: 1, username: 'proprietaire', email: 'owner@example.com', firstName: 'Big', lastName: 'Boss', password: 'owner', role: UserRole.Owner, permissions: ROLE_PERMISSIONS[UserRole.Owner] },
   { id: 2, tenantId: 1, username: 'admin', email: 'admin@example.com', firstName: 'Jean', lastName: 'Dupont', password: 'admin', role: UserRole.Admin, permissions: ROLE_PERMISSIONS[UserRole.Admin], assignedStoreId: 1 },
   { id: 3, tenantId: 1, username: 'gerant', email: 'jane@example.com', firstName: 'Jeanne', lastName: 'Martin', password: 'manager', role: UserRole.Manager, permissions: ROLE_PERMISSIONS[UserRole.Manager], assignedStoreId: 2 },
@@ -80,8 +80,8 @@ export const MOCK_PRODUCTS: Product[] = [
     id: 1, 
     // Add missing tenantId
     tenantId: 1,
-    name: 'T-Shirt "Gemini"', category: 'Vêtements', 
-    description: 'Un t-shirt confortable en coton bio avec le logo Gemini exclusif.',
+    name: 'T-Shirt "Smart POS"', category: 'Vêtements', 
+    description: 'Un t-shirt confortable en coton bio avec le logo Smart POS exclusif.',
     imageUrl: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?ixlib=rb-4.0.3&q=85&fm=jpg&crop=entropy&cs=srgb&w=600', 
     low_stock_threshold: 10, enable_email_alert: true,
     attributes: [ { name: 'Taille', values: ['S', 'M', 'L'] }, { name: 'Couleur', values: ['Noir', 'Blanc'] } ],
@@ -119,7 +119,7 @@ export const MOCK_CUSTOMERS: Customer[] = [
 export const DEFAULT_SETTINGS: Settings = {
   // Add missing tenantId
   tenantId: 1,
-  storeName: 'Gemini Retail',
+  storeName: 'Smart Retail',
   taxRate: 18, 
   loyaltyProgram: {
     enabled: true,
@@ -320,7 +320,7 @@ export const TRANSLATIONS: { [key: string]: { [key: string]: string } } = {
         totalSales: "Chiffre d'Affaires",
         avgOrderValue: "Panier Moyen",
         loadingInsights: "Génération de l'analyse IA...",
-        getInsights: "Analyse IA Gemini",
+        getInsights: "Analyse IA",
         thisWeek: "Cette Semaine",
         thisMonth: "Ce Mois",
         from: "Du",
@@ -329,7 +329,7 @@ export const TRANSLATIONS: { [key: string]: { [key: string]: string } } = {
         categorySales: "Ventes par Catégorie",
         bestSellingItems: "Produits les plus vendus",
         storeComparison: "Performance par Magasin",
-        insightsTitle: "Recommandations Stratégiques Gemini",
+        insightsTitle: "Recommandations Stratégiques IA",
         topSpendingCustomers: "Top Clients",
         visits: "visites",
 

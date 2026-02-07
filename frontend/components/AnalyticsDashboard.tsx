@@ -373,7 +373,7 @@ const AnalyticsDashboard: React.FC = () => {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                     </svg>
                                 </div>
-                                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Analyses Prédictives Gemini</h3>
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Analyses Prédictives IA</h3>
                             </div>
                             {isLoading ? (
                                 <div className="flex flex-col items-center justify-center py-12">

@@ -9,6 +9,7 @@ import { SalesHistoryProvider } from './contexts/SalesHistoryContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { UserProvider } from './contexts/UserContext';
 import { LicenseProvider } from './contexts/LicenseContext';
+import { AppSettingsProvider } from './contexts/AppSettingsContext';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import LandingPage from './pages/LandingPage';
@@ -38,42 +39,44 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <LanguageProvider>
-      <ActionLogProvider>
-        <LicenseProvider>
-          <UserProvider>
-            <AuthProvider>
-              <StoreProvider>
-                <SupplierProvider>
-                  <SettingsProvider>
-                    <ProductProvider>
-                      <CustomerProvider>
-                        <SalesHistoryProvider>
-                          <PromoCodeProvider>
-                            <CashDrawerProvider>
-                              <CartProvider>
-                                <ThemeProvider>
-                                  <ToastProvider>
-                                    <div className="min-h-screen font-sans">
-                                      <AppContent />
-                                      <UpdateNotification />
-                                    </div>
-                                  </ToastProvider>
-                                </ThemeProvider>
-                              </CartProvider>
-                            </CashDrawerProvider>
-                          </PromoCodeProvider>
-                        </SalesHistoryProvider>
-                      </CustomerProvider>
-                    </ProductProvider>
-                  </SettingsProvider>
-                </SupplierProvider>
-              </StoreProvider>
-            </AuthProvider>
-          </UserProvider>
-        </LicenseProvider>
-      </ActionLogProvider>
-    </LanguageProvider>
+    <AppSettingsProvider>
+      <LanguageProvider>
+        <ActionLogProvider>
+          <LicenseProvider>
+            <UserProvider>
+              <AuthProvider>
+                <StoreProvider>
+                  <SupplierProvider>
+                    <SettingsProvider>
+                      <ProductProvider>
+                        <CustomerProvider>
+                          <SalesHistoryProvider>
+                            <PromoCodeProvider>
+                              <CashDrawerProvider>
+                                <CartProvider>
+                                  <ThemeProvider>
+                                    <ToastProvider>
+                                      <div className="min-h-screen font-sans">
+                                        <AppContent />
+                                        <UpdateNotification />
+                                      </div>
+                                    </ToastProvider>
+                                  </ThemeProvider>
+                                </CartProvider>
+                              </CashDrawerProvider>
+                            </PromoCodeProvider>
+                          </SalesHistoryProvider>
+                        </CustomerProvider>
+                      </ProductProvider>
+                    </SettingsProvider>
+                  </SupplierProvider>
+                </StoreProvider>
+              </AuthProvider>
+            </UserProvider>
+          </LicenseProvider>
+        </ActionLogProvider>
+      </LanguageProvider>
+    </AppSettingsProvider>
   );
 };
 

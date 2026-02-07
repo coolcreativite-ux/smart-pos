@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLicenses } from '../contexts/LicenseContext';
 import { useToast } from '../contexts/ToastContext';
+import { useAppSettings } from '../contexts/AppSettingsContext';
 import Spinner from '../components/Spinner';
 import OrderContactModal from '../components/OrderContactModal';
 
@@ -10,6 +11,7 @@ const TenantLicensePage: React.FC = () => {
     const { user, activateApp } = useAuth();
     const { licenses } = useLicenses();
     const { addToast } = useToast();
+    const { settings } = useAppSettings();
     
     const [key, setKey] = useState('');
     const [isActivating, setIsActivating] = useState(false);
@@ -71,27 +73,27 @@ const TenantLicensePage: React.FC = () => {
     const plans = [
         { 
             id: 'STARTER', 
-            name: 'Starter', 
-            price: '25.000', 
-            period: '1 Mois', 
-            features: ['1 Magasin', 'Support Standard', 'Rapports de base'],
+            name: settings.license_plan_starter_name, 
+            price: settings.license_plan_starter_price, 
+            period: settings.license_plan_starter_period, 
+            features: settings.license_plan_starter_features,
             isCurrent: activeLicense?.plan === 'STARTER'
         },
         { 
             id: 'BUSINESS_PRO', 
-            name: 'Business Pro', 
-            price: '250.000', 
-            period: '1 An', 
-            features: ['Multi-magasins illimités', 'Insights IA', 'Support Prioritaire 24/7'],
+            name: settings.license_plan_business_name, 
+            price: settings.license_plan_business_price, 
+            period: settings.license_plan_business_period, 
+            features: settings.license_plan_business_features,
             isCurrent: activeLicense?.plan === 'BUSINESS_PRO',
             popular: true
         },
         { 
             id: 'ENTERPRISE', 
-            name: 'Enterprise', 
-            price: '950.000', 
-            period: 'À vie', 
-            features: ['Tout illimité', 'Accès Early-Bird IA', 'Déploiement dédié'],
+            name: settings.license_plan_enterprise_name, 
+            price: settings.license_plan_enterprise_price, 
+            period: settings.license_plan_enterprise_period, 
+            features: settings.license_plan_enterprise_features,
             isCurrent: activeLicense?.plan === 'ENTERPRISE'
         }
     ];

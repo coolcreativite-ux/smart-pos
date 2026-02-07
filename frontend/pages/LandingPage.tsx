@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
+import { useAppSettings } from '../contexts/AppSettingsContext';
 import OrderContactModal from '../components/OrderContactModal';
 
 interface LandingPageProps {
@@ -9,6 +10,7 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
     const { t } = useLanguage();
+    const { settings, isLoading } = useAppSettings();
     const [isScrolled, setIsScrolled] = useState(false);
     
     // États pour le système de commande/contact
@@ -84,13 +86,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             <section className="pt-48 pb-20 px-6 overflow-hidden">
                 <div className="max-w-7xl mx-auto text-center relative">
                     <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/20 blur-[120px] rounded-full -z-10 animate-pulse"></div>
-                    <span className="inline-block px-4 py-1.5 mb-6 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-black uppercase tracking-[0.2em] animate-fade-in-up">Propulsé par l'IA</span>
+                    <span className="inline-block px-4 py-1.5 mb-6 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-black uppercase tracking-[0.2em] animate-fade-in-up">{settings.landing_hero_badge}</span>
                     <h1 className="text-6xl md:text-8xl font-black text-slate-900 dark:text-white leading-[1] tracking-tighter mb-8 animate-fade-in-up">
-                        Gérez votre commerce avec <br />
+                        {settings.landing_hero_title.split('l\'intelligence artificielle')[0]}
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-500">l'intelligence artificielle.</span>
                     </h1>
                     <p className="max-w-2xl mx-auto text-lg text-slate-500 dark:text-slate-400 font-medium mb-12 animate-fade-in-up [animation-delay:200ms]">
-                        Le premier système de point de vente qui analyse vos stocks, prédit vos ventes et gère l'ensemble de vos boutiques en temps réel.
+                        {settings.landing_hero_subtitle}
                     </p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up [animation-delay:400ms]">
                         <button onClick={onLoginClick} className="w-full sm:w-auto px-10 py-5 bg-indigo-600 text-white font-black rounded-[2rem] text-sm shadow-2xl shadow-indigo-500/40 hover:bg-indigo-700 hover:scale-105 transition-all uppercase tracking-widest">Essayez gratuitement</button>
@@ -108,9 +110,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {[
-                            { title: 'Multi-Boutiques', desc: 'Gérez 1 ou 100 magasins depuis un seul tableau de bord centralisé.', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-                            { title: 'IA Intégrée', desc: 'Recevez des rapports prédictifs et des conseils stratégiques générés par IA.', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
-                            { title: 'Inventaire Intelligent', desc: 'Alertes automatiques de stock bas et historique complet des mouvements.', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' }
+                            { title: settings.landing_feature_1_title, desc: settings.landing_feature_1_desc, icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
+                            { title: settings.landing_feature_2_title, desc: settings.landing_feature_2_desc, icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+                            { title: settings.landing_feature_3_title, desc: settings.landing_feature_3_desc, icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' }
                         ].map((f, i) => (
                             <div key={i} className="p-10 rounded-[3rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-indigo-500 transition-all group shadow-xl shadow-slate-200/20">
                                 <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform shadow-inner">
@@ -135,9 +137,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {[
-                            { id: 'STARTER', name: 'Starter', price: '25.000', period: '1 Mois', features: ['1 Magasin', 'Support Standard', 'Rapports de base'] },
-                            { id: 'BUSINESS_PRO', name: 'Business Pro', price: '250.000', period: '1 An', features: ['Boutiques Illimitées', 'Insights IA', 'Support Prioritaire'], popular: true },
-                            { id: 'ENTERPRISE', name: 'Enterprise', price: '950.000', period: 'À vie', features: ['Tout Illimité', 'Accès Early-Bird IA', 'Serveur Dédié'] }
+                            { id: 'STARTER', name: settings.license_plan_starter_name, price: settings.license_plan_starter_price, period: settings.license_plan_starter_period, features: settings.license_plan_starter_features },
+                            { id: 'BUSINESS_PRO', name: settings.license_plan_business_name, price: settings.license_plan_business_price, period: settings.license_plan_business_period, features: settings.license_plan_business_features, popular: true },
+                            { id: 'ENTERPRISE', name: settings.license_plan_enterprise_name, price: settings.license_plan_enterprise_price, period: settings.license_plan_enterprise_period, features: settings.license_plan_enterprise_features }
                         ].map((p, i) => (
                             <div key={i} className={`relative p-12 rounded-[3.5rem] border-2 transition-all duration-500 ${p.popular ? 'bg-indigo-600 text-white border-indigo-500 scale-105 shadow-2xl' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 shadow-2xl'}`}>
                                 {p.popular && <span className="absolute -top-5 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-900 px-8 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl">Le plus populaire</span>}

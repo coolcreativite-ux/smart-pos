@@ -24,6 +24,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     localStorage.setItem('theme', newTheme);
   }
 
+  // Appliquer le thème initial immédiatement
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {

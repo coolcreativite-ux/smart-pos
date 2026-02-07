@@ -1,7 +1,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export const getSalesInsights = async (salesData: string): Promise<string> => {
@@ -29,7 +29,7 @@ export const getSalesInsights = async (salesData: string): Promise<string> => {
 export const generateWelcomeEmail = async (userData: { firstName: string, lastName: string, username: string, password?: string, storeName: string, role: string }): Promise<string> => {
     if (!ai || !apiKey) {
         const passwordInfo = userData.password ? `\n- Mot de passe temporaire : ${userData.password}\n⚠️ Veuillez changer ce mot de passe lors de votre première connexion.` : '';
-        return `OBJET : Bienvenue sur Smart POS - Vos 14 jours d'essai BUSINESS PRO sont activés !\n---\nCORPS : Bonjour ${userData.firstName} ${userData.lastName},\n\nFélicitations ! Votre compte Smart POS a été créé avec succès.\n\n**Informations de connexion :**\n- Identifiant : ${userData.username}${passwordInfo}\n- Enseigne : ${userData.storeName}\n- Rôle : ${userData.role}\n\nVotre essai gratuit de 14 jours sur notre offre BUSINESS PRO est maintenant actif. Profitez de toutes les fonctionnalités avancées !\n\nCordialement,\nL'équipe Smart POS`;
+        return `OBJET : Bienvenue sur SmartPOS - Votre compte est prêt !\n---\nCORPS : Bonjour ${userData.firstName} ${userData.lastName},\n\nBienvenue chez Cool Digital Africa ! 🎉\n\nVotre compte SmartPOS a été créé avec succès.\n\n**Informations de connexion :**\n- Identifiant : ${userData.username}${passwordInfo}\n- Enseigne : ${userData.storeName}\n- Rôle : ${userData.role}\n\n**Accédez à votre compte :**\nhttps://smartpos.cooldigital.africa\n\nVotre essai gratuit de 14 jours est maintenant actif. Profitez de toutes les fonctionnalités avancées !\n\nBesoin d'aide ? Contactez-nous à contact@cooldigital.africa\n\nCordialement,\nL'équipe Cool Digital Africa`;
     }
 
     try {
@@ -38,7 +38,7 @@ export const generateWelcomeEmail = async (userData: { firstName: string, lastNa
             : '';
             
         const prompt = `
-            Rédige un email de bienvenue professionnel et enthousiaste pour un nouveau client de notre plateforme SaaS "Smart POS".
+            Rédige un email de bienvenue professionnel et enthousiaste pour un nouveau client de notre plateforme SaaS "SmartPOS" de Cool Digital Africa.
             Le client vient de s'inscrire et bénéficie d'un ESSAI GRATUIT de 14 JOURS sur la formule BUSINESS PRO (notre offre la plus complète incluant le multi-boutiques et l'IA).
             
             Informations du client :
@@ -54,6 +54,11 @@ export const generateWelcomeEmail = async (userData: { firstName: string, lastNa
             4. Mentionner que l'accès est déjà activé pour 14 jours sur l'offre BUSINESS PRO.
             5. Expliquer qu'ils peuvent configurer leurs produits et magasins dès maintenant.
             6. Rappeler que l'IA Gemini est à leur disposition pour les analyses.
+            7. Ajouter le lien : https://smartpos.cooldigital.africa
+            8. Contact support : contact@cooldigital.africa
+
+            Ton : Professionnel, chaleureux, africain
+            Signature : L'équipe Cool Digital Africa
 
             IMPORTANT : Respecte strictement ce format :
             OBJET : [Le sujet de l'email]
@@ -72,25 +77,35 @@ export const generateWelcomeEmail = async (userData: { firstName: string, lastNa
     } catch (error) {
         console.error("Email generation failed:", error);
         const passwordInfo = userData.password ? `\n- Mot de passe temporaire : ${userData.password}\n⚠️ Veuillez changer ce mot de passe lors de votre première connexion.` : '';
-        return `OBJET : Bienvenue sur Gemini POS - Vos 14 jours d'essai BUSINESS PRO sont activés !\n---\nCORPS : Bonjour ${userData.firstName} ${userData.lastName},\n\nVotre compte a été créé avec succès. Profitez de votre essai gratuit sur notre offre Business Pro.\n\n**Identifiants de connexion :**\n- Username : ${userData.username}${passwordInfo}`;
+        return `OBJET : Bienvenue sur SmartPOS - Votre compte est prêt !\n---\nCORPS : Bonjour ${userData.firstName} ${userData.lastName},\n\nBienvenue chez Cool Digital Africa ! 🎉\n\nVotre compte SmartPOS a été créé avec succès.\n\n**Identifiants de connexion :**\n- Username : ${userData.username}${passwordInfo}\n\n**Accédez à votre compte :**\nhttps://smartpos.cooldigital.africa\n\nProfitez de votre essai gratuit de 14 jours !\n\nCordialement,\nL'équipe Cool Digital Africa`;
     }
 };
 
 export const generateLicenseEmail = async (data: { ownerName: string, licenseKey: string, expiryDate: string, duration: string }): Promise<string> => {
     if (!ai || !apiKey) {
-        return `OBJET : Votre Clé de Licence Gemini POS\n---\nCORPS : Bonjour ${data.ownerName},\n\nVotre licence Gemini POS a été générée avec succès !\n\n**Détails de votre licence :**\n- Clé de licence : \`${data.licenseKey}\`\n- Durée : ${data.duration}\n- Date d'expiration : ${data.expiryDate}\n\n**Comment activer votre licence :**\n1. Connectez-vous à votre compte Gemini POS\n2. Accédez aux paramètres\n3. Entrez votre clé de licence\n\nMerci de votre confiance !\n\nCordialement,\nL'équipe Gemini POS`;
+        return `OBJET : Votre Clé de Licence SmartPOS\n---\nCORPS : Bonjour ${data.ownerName},\n\nVotre licence SmartPOS a été générée avec succès ! 🎉\n\n**Détails de votre licence :**\n- Clé de licence : \`${data.licenseKey}\`\n- Durée : ${data.duration}\n- Date d'expiration : ${data.expiryDate}\n\n**Comment activer votre licence :**\n1. Connectez-vous à https://smartpos.cooldigital.africa\n2. Accédez aux paramètres\n3. Entrez votre clé de licence\n\nBesoin d'aide ? Contactez-nous à contact@cooldigital.africa\n\nMerci de votre confiance !\n\nCordialement,\nL'équipe Cool Digital Africa`;
     }
 
     try {
         const prompt = `
             Rédige un email professionnel pour envoyer une nouvelle clé de licence logicielle à un client.
-            Logiciel : Gemini POS
+            Logiciel : SmartPOS de Cool Digital Africa
             
             Informations :
             - Client : ${data.ownerName}
             - Clé : ${data.licenseKey}
             - Expiration : ${data.expiryDate}
             - Durée : ${data.duration}
+
+            Contenu :
+            1. Félicitations pour l'activation
+            2. Afficher clairement la clé de licence
+            3. Instructions d'activation
+            4. Lien : https://smartpos.cooldigital.africa
+            5. Contact : contact@cooldigital.africa
+
+            Ton : Professionnel, chaleureux
+            Signature : L'équipe Cool Digital Africa
 
             IMPORTANT : Respecte strictement ce format :
             OBJET : [Le sujet de l'email]
@@ -105,9 +120,9 @@ export const generateLicenseEmail = async (data: { ownerName: string, licenseKey
             config: { temperature: 0.4 }
         });
 
-        return response.text || "OBJET : Votre licence Gemini POS\n---\nCORPS : Votre clé est prête.";
+        return response.text || "OBJET : Votre licence SmartPOS\n---\nCORPS : Votre clé est prête.";
     } catch (error) {
         console.error("License email generation failed:", error);
-        return `OBJET : Votre Clé de Licence Gemini POS\n---\nCORPS : Bonjour ${data.ownerName},\n\nVotre clé de licence : \`${data.licenseKey}\`\n\nExpiration : ${data.expiryDate}`;
+        return `OBJET : Votre Clé de Licence SmartPOS\n---\nCORPS : Bonjour ${data.ownerName},\n\nVotre clé de licence : \`${data.licenseKey}\`\n\nExpiration : ${data.expiryDate}\n\nCordialement,\nL'équipe Cool Digital Africa`;
     }
 };

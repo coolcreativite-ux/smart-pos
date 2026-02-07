@@ -58,7 +58,7 @@ index.tsx
 index.html
 manifest.json
 sw.js
-vite.config.ts
 types.ts
 constants.ts
+
 

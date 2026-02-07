@@ -75,7 +75,7 @@ export const ActionLogProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     try {
       // Sauvegarder en base de données
-      const response = await fetch('${API_URL}/api/action-logs', {
+      const response = await fetch(`${API_URL}/api/action-logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

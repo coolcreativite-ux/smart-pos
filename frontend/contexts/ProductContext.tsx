@@ -211,7 +211,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const updateInventoryInDB = async (variantId: number, storeId: number, change: number, reason: StockChangeReason, user: User, notes?: string) => {
     try {
       // Mettre à jour l'inventaire via l'API
-      await fetch('${API_URL}/api/inventory/update', {
+      await fetch(`${API_URL}/api/inventory/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

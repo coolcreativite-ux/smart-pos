@@ -119,7 +119,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     
     try {
       // Ajouter en base de données
-      const response = await fetch('${API_URL}/api/stores', {
+      const response = await fetch(`${API_URL}/api/stores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

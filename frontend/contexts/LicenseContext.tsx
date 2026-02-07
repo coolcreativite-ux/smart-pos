@@ -126,7 +126,7 @@ export const LicenseProvider: React.FC<{ children: ReactNode }> = ({ children })
     
     // Sauvegarder dans la base de données
     try {
-      const response = await fetch('${API_URL}/api/licenses', {
+      const response = await fetch(`${API_URL}/api/licenses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

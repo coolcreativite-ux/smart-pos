@@ -91,7 +91,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Sauvegarder dans la base de données via l'API
     try {
-      const response = await fetch('${API_URL}/api/users', {
+      const response = await fetch(`${API_URL}/api/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -97,7 +97,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     
     try {
       // Ajouter en base de données
-      const response = await fetch('${API_URL}/api/customers', {
+      const response = await fetch(`${API_URL}/api/customers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

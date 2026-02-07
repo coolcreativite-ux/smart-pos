@@ -10,9 +10,10 @@ dotenv.config({ path: envFile });
 
 console.log(`🔧 Environnement: ${process.env.NODE_ENV || 'development'}`);
 console.log(`📁 Fichier .env chargé: ${envFile}`);
+console.log(`🔌 PORT configuré: ${process.env.PORT}`);
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
@@ -395,6 +396,95 @@ app.post('/api/products', async (req, res) => {
   }
 });
 
+// UPDATE product endpoint
+app.patch('/api/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, category, description, imageUrl, attributes, low_stock_threshold, enable_email_alert, tenantId } = req.body;
+    
+    console.log('✏️ Mise à jour produit:', id);
+
+    // Vérifier si le produit existe
+    const productResult = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+    
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Produit non trouvé' });
+    }
+
+    // Gérer la catégorie si fournie
+    let categoryId = productResult.rows[0].category_id;
+    if (category) {
+      const categoryResult = await pool.query(
+        'SELECT id FROM categories WHERE name = $1 AND tenant_id = $2',
+        [category, tenantId]
+      );
+      
+      if (categoryResult.rows.length > 0) {
+        categoryId = categoryResult.rows[0].id;
+      } else {
+        const newCategoryResult = await pool.query(
+          'INSERT INTO categories (tenant_id, name) VALUES ($1, $2) RETURNING id',
+          [tenantId, category]
+        );
+        categoryId = newCategoryResult.rows[0].id;
+      }
+    }
+
+    // Mettre à jour le produit
+    const result = await pool.query(
+      `UPDATE products 
+       SET name = COALESCE($1, name),
+           category_id = COALESCE($2, category_id),
+           description = COALESCE($3, description),
+           image_url = COALESCE($4, image_url),
+           attributes = COALESCE($5, attributes),
+           low_stock_threshold = COALESCE($6, low_stock_threshold),
+           enable_email_alert = COALESCE($7, enable_email_alert)
+       WHERE id = $8
+       RETURNING *`,
+      [name, categoryId, description, imageUrl, JSON.stringify(attributes), low_stock_threshold, enable_email_alert, id]
+    );
+
+    console.log('✅ Produit mis à jour:', result.rows[0].name);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Erreur mise à jour produit:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
+// DELETE product endpoint
+app.delete('/api/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('🗑️ Suppression produit:', id);
+
+    // Vérifier si le produit existe
+    const productResult = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+    
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Produit non trouvé' });
+    }
+
+    const product = productResult.rows[0];
+    
+    // Supprimer d'abord les variantes (cascade)
+    await pool.query('DELETE FROM product_variants WHERE product_id = $1', [id]);
+    
+    // Supprimer l'inventaire lié
+    await pool.query('DELETE FROM inventory WHERE variant_id IN (SELECT id FROM product_variants WHERE product_id = $1)', [id]);
+    
+    // Supprimer le produit
+    await pool.query('DELETE FROM products WHERE id = $1', [id]);
+    
+    console.log('✅ Produit supprimé:', product.name);
+    res.json({ success: true, message: 'Produit supprimé avec succès' });
+  } catch (error) {
+    console.error('❌ Erreur suppression produit:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
 // ===== AUTH ENDPOINTS =====
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -471,6 +561,32 @@ app.post('/api/customers', async (req, res) => {
   } catch (error) {
     console.error('❌ Erreur création client:', error);
     res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE customer endpoint
+app.delete('/api/customers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('🗑️ Suppression client:', id);
+
+    // Vérifier si le client existe
+    const customerResult = await pool.query('SELECT * FROM customers WHERE id = $1', [id]);
+    
+    if (customerResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Client non trouvé' });
+    }
+
+    const customer = customerResult.rows[0];
+    
+    // Supprimer le client
+    await pool.query('DELETE FROM customers WHERE id = $1', [id]);
+    
+    console.log('✅ Client supprimé:', `${customer.first_name} ${customer.last_name}`);
+    res.json({ success: true, message: 'Client supprimé avec succès' });
+  } catch (error) {
+    console.error('❌ Erreur suppression client:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
   }
 });
 
@@ -579,7 +695,43 @@ app.post('/api/users', async (req, res) => {
     );
 
     console.log('✅ Utilisateur créé:', result.rows[0].id);
-    res.status(201).json(result.rows[0]);
+
+    // Si c'est un propriétaire, créer automatiquement une licence d'essai de 14 jours BUSINESS PRO
+    if (role.toLowerCase() === 'owner') {
+      try {
+        // Générer une clé de licence unique
+        const trialKey = `TRIAL-${Date.now()}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+        
+        // Date d'expiration : 14 jours à partir de maintenant
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 14);
+        
+        // Créer la licence d'essai
+        const licenseResult = await pool.query(
+          'INSERT INTO licenses (key, tenant_id, assigned_to, expiry_date, is_active, plan) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+          [trialKey, finalTenantId, `${first_name} ${last_name}`, expiryDate, true, 'BUSINESS_PRO']
+        );
+        
+        console.log('✅ Licence d\'essai créée automatiquement:', licenseResult.rows[0].key);
+        
+        // Retourner l'utilisateur avec les infos de la licence d'essai
+        res.status(201).json({
+          ...result.rows[0],
+          trial_license: {
+            key: trialKey,
+            expiry_date: expiryDate,
+            plan: 'BUSINESS_PRO',
+            is_trial: true
+          }
+        });
+      } catch (licenseError) {
+        console.error('❌ Erreur création licence d\'essai:', licenseError);
+        // Continuer même si la création de la licence échoue
+        res.status(201).json(result.rows[0]);
+      }
+    } else {
+      res.status(201).json(result.rows[0]);
+    }
   } catch (error) {
     console.error('❌ Erreur création utilisateur:', error);
     
@@ -593,6 +745,122 @@ app.post('/api/users', async (req, res) => {
       }
     }
     
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
+// DELETE user endpoint
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('🗑️ Suppression utilisateur:', id);
+
+    // Vérifier si l'utilisateur existe
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    const user = userResult.rows[0];
+    
+    // Supprimer l'utilisateur
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    
+    console.log('✅ Utilisateur supprimé:', user.username);
+    res.json({ success: true, message: 'Utilisateur supprimé avec succès' });
+  } catch (error) {
+    console.error('❌ Erreur suppression utilisateur:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
+// UPDATE user endpoint
+app.patch('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email, first_name, last_name, role, assigned_store_id, permissions } = req.body;
+    
+    console.log('✏️ Mise à jour utilisateur:', id);
+
+    // Vérifier si l'utilisateur existe
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    // Mettre à jour l'utilisateur
+    const result = await pool.query(
+      `UPDATE users 
+       SET email = COALESCE($1, email),
+           first_name = COALESCE($2, first_name),
+           last_name = COALESCE($3, last_name),
+           role = COALESCE($4, role),
+           assigned_store_id = $5
+       WHERE id = $6
+       RETURNING *`,
+      [email, first_name, last_name, role, assigned_store_id, id]
+    );
+
+    console.log('✅ Utilisateur mis à jour:', result.rows[0].username);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Erreur mise à jour utilisateur:', error);
+    
+    // Gérer les erreurs de contrainte unique
+    if (error.code === '23505') {
+      if (error.constraint === 'users_email_key') {
+        return res.status(409).json({ error: 'email_exists' });
+      }
+    }
+    
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
+// Change password endpoint
+app.patch('/api/users/:id/password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { old_password, new_password } = req.body;
+    
+    console.log('🔐 Changement de mot de passe pour utilisateur:', id);
+
+    if (!old_password || !new_password) {
+      return res.status(400).json({ error: 'Ancien et nouveau mot de passe requis' });
+    }
+
+    // Récupérer l'utilisateur
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Vérifier l'ancien mot de passe
+    const isValidPassword = await bcrypt.compare(old_password, user.password_hash);
+    
+    if (!isValidPassword) {
+      console.log('❌ Ancien mot de passe incorrect');
+      return res.status(401).json({ error: 'incorrect_password' });
+    }
+
+    // Hasher le nouveau mot de passe
+    const new_password_hash = await bcrypt.hash(new_password, 10);
+
+    // Mettre à jour le mot de passe
+    await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
+      [new_password_hash, id]
+    );
+
+    console.log('✅ Mot de passe changé avec succès');
+    res.json({ success: true, message: 'Mot de passe changé avec succès' });
+  } catch (error) {
+    console.error('❌ Erreur changement mot de passe:', error);
     res.status(500).json({ error: 'Erreur serveur', details: error.message });
   }
 });
@@ -794,6 +1062,169 @@ app.put('/api/settings/:tenantId', async (req, res) => {
   } catch (error) {
     console.error('❌ Erreur mise à jour paramètres:', error);
     res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ===== SALES ENDPOINTS =====
+// GET /api/sales - Récupérer toutes les ventes
+app.get('/api/sales', async (req, res) => {
+  try {
+    console.log('💰 Récupération des ventes...');
+    
+    const result = await pool.query(`
+      SELECT 
+        s.*,
+        json_agg(
+          json_build_object(
+            'id', si.id,
+            'product_id', si.product_id,
+            'variant_id', si.variant_id,
+            'quantity', si.quantity,
+            'returned_quantity', si.returned_quantity,
+            'unit_price', si.unit_price,
+            'total_price', si.total_price
+          )
+        ) as items
+      FROM sales s
+      LEFT JOIN sale_items si ON s.id = si.sale_id
+      GROUP BY s.id
+      ORDER BY s.created_at DESC
+    `);
+    
+    console.log(`✅ ${result.rows.length} ventes récupérées`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('❌ Erreur récupération ventes:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
+// POST /api/sales - Créer une nouvelle vente
+app.post('/api/sales', async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    console.log('💰 Création vente:', req.body);
+    
+    const {
+      tenant_id,
+      store_id,
+      user_id,
+      customer_id,
+      subtotal,
+      discount,
+      loyalty_discount,
+      tax,
+      total,
+      promo_code,
+      loyalty_points_earned,
+      loyalty_points_used,
+      payment_method,
+      is_credit,
+      total_paid,
+      item_status,
+      items
+    } = req.body;
+
+    // Démarrer une transaction
+    await client.query('BEGIN');
+
+    // Créer la vente
+    const saleResult = await client.query(
+      `INSERT INTO sales (
+        tenant_id, store_id, user_id, customer_id,
+        subtotal, discount, loyalty_discount, tax, total,
+        promo_code, loyalty_points_earned, loyalty_points_used,
+        payment_method, is_credit, total_paid, item_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      RETURNING *`,
+      [
+        tenant_id, store_id, user_id, customer_id,
+        subtotal, discount, loyalty_discount, tax, total,
+        promo_code, loyalty_points_earned, loyalty_points_used,
+        payment_method, is_credit, total_paid, item_status
+      ]
+    );
+
+    const sale = saleResult.rows[0];
+    console.log('✅ Vente créée:', sale.id);
+
+    // Créer les items de la vente
+    const createdItems = [];
+    for (const item of items) {
+      const itemResult = await client.query(
+        `INSERT INTO sale_items (
+          sale_id, product_id, variant_id, quantity, unit_price, total_price
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *`,
+        [
+          sale.id,
+          item.product_id,
+          item.variant_id,
+          item.quantity,
+          item.unit_price,
+          item.total_price
+        ]
+      );
+      createdItems.push(itemResult.rows[0]);
+    }
+
+    console.log(`✅ ${createdItems.length} items créés`);
+
+    // Commit la transaction
+    await client.query('COMMIT');
+
+    res.status(201).json({ ...sale, items: createdItems });
+  } catch (error) {
+    // Rollback en cas d'erreur
+    await client.query('ROLLBACK');
+    console.error('❌ Erreur création vente:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// PATCH /api/sales/:id - Mettre à jour une vente (pour les retours)
+app.patch('/api/sales/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { returned_items } = req.body;
+    
+    console.log('🔄 Mise à jour vente (retour):', id);
+
+    // Mettre à jour les quantités retournées pour chaque item
+    for (const item of returned_items) {
+      await pool.query(
+        'UPDATE sale_items SET returned_quantity = $1 WHERE id = $2',
+        [item.returned_quantity, item.id]
+      );
+    }
+
+    console.log('✅ Vente mise à jour');
+    res.json({ success: true, message: 'Retour enregistré' });
+  } catch (error) {
+    console.error('❌ Erreur mise à jour vente:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
+// DELETE /api/sales - Supprimer l'historique des ventes (clear history)
+app.delete('/api/sales', async (req, res) => {
+  try {
+    console.log('🗑️ Suppression de l\'historique des ventes');
+
+    // Supprimer d'abord les items (cascade devrait le faire mais soyons explicites)
+    await pool.query('DELETE FROM sale_items');
+    
+    // Supprimer les ventes
+    const result = await pool.query('DELETE FROM sales RETURNING id');
+    
+    console.log(`✅ ${result.rowCount} ventes supprimées`);
+    res.json({ success: true, message: `${result.rowCount} ventes supprimées` });
+  } catch (error) {
+    console.error('❌ Erreur suppression historique:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
   }
 });
 

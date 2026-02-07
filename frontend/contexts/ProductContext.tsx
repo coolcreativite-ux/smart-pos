@@ -280,11 +280,60 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     return true;
   }, [allProducts]);
 
-  const updateProduct = useCallback((updatedProductData: Product) => {
+  const updateProduct = useCallback(async (updatedProductData: Product) => {
+    // Mettre à jour dans la base de données via l'API
+    try {
+      const response = await fetch(`${API_URL}/api/products/${updatedProductData.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: updatedProductData.name,
+          category: updatedProductData.category,
+          description: updatedProductData.description,
+          imageUrl: updatedProductData.imageUrl,
+          attributes: updatedProductData.attributes,
+          low_stock_threshold: updatedProductData.low_stock_threshold,
+          enable_email_alert: updatedProductData.enable_email_alert,
+          tenantId: updatedProductData.tenantId
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('❌ Erreur lors de la mise à jour du produit dans la DB');
+        throw new Error('Erreur lors de la mise à jour');
+      }
+
+      console.log('✅ Produit mis à jour dans la base de données');
+    } catch (error) {
+      console.error('❌ Erreur API lors de la mise à jour du produit:', error);
+      // Continuer avec la mise à jour locale même en cas d'erreur
+    }
+
+    // Mettre à jour le state local
     saveToGlobal(allProducts.map(p => p.id === updatedProductData.id ? updatedProductData : p));
   }, [allProducts]);
 
-  const deleteProduct = useCallback((productId: number) => {
+  const deleteProduct = useCallback(async (productId: number) => {
+    // Supprimer dans la base de données via l'API
+    try {
+      const response = await fetch(`${API_URL}/api/products/${productId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        console.error('❌ Erreur lors de la suppression du produit dans la DB');
+        throw new Error('Erreur lors de la suppression');
+      }
+
+      console.log('✅ Produit supprimé de la base de données');
+    } catch (error) {
+      console.error('❌ Erreur API lors de la suppression du produit:', error);
+      throw error; // Propager l'erreur pour que l'UI puisse la gérer
+    }
+
+    // Supprimer du state local
     saveToGlobal(allProducts.filter(p => p.id !== productId));
   }, [allProducts]);
   

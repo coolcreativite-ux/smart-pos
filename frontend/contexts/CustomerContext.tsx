@@ -11,6 +11,7 @@ interface CustomerContextType {
   customers: Customer[];
   addCustomer: (customerData: Omit<Customer, 'id' | 'tenantId' | 'salesHistoryIds' | 'loyaltyPoints' | 'storeCredit'>) => Customer;
   updateCustomer: (customerData: Customer) => void;
+  deleteCustomer: (customerId: number) => Promise<void>;
   updateCustomerAfterSale: (customerId: number, saleId: string, pointsEarned: number, pointsUsed: number) => void;
   addStoreCredit: (customerId: number, amount: number) => void;
   useStoreCredit: (customerId: number, amount: number) => boolean;
@@ -166,6 +167,28 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     // Mettre à jour localement
     saveToGlobal(allCustomers.map(c => (c.id === customerData.id ? customerData : c)));
   }, [allCustomers]);
+
+  const deleteCustomer = useCallback(async (customerId: number): Promise<void> => {
+    // Supprimer dans la base de données via l'API
+    try {
+      const response = await fetch(`${API_URL}/api/customers/${customerId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        console.error('❌ Erreur lors de la suppression du client dans la DB');
+        throw new Error('Erreur lors de la suppression');
+      }
+
+      console.log('✅ Client supprimé de la base de données');
+    } catch (error) {
+      console.error('❌ Erreur API lors de la suppression du client:', error);
+      throw error; // Propager l'erreur pour que l'UI puisse la gérer
+    }
+
+    // Supprimer du state local
+    saveToGlobal(allCustomers.filter(c => c.id !== customerId));
+  }, [allCustomers]);
   
   const updateCustomerAfterSale = useCallback((customerId: number, saleId: string, pointsEarned: number, pointsUsed: number) => {
     const updatedCustomers = allCustomers.map(c => {
@@ -208,7 +231,8 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     <CustomerContext.Provider value={{ 
       customers, 
       addCustomer, 
-      updateCustomer, 
+      updateCustomer,
+      deleteCustomer,
       updateCustomerAfterSale, 
       addStoreCredit, 
       useStoreCredit,

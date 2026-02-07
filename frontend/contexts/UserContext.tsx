@@ -31,13 +31,15 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Charger les utilisateurs depuis la base de données
   const loadUsers = useCallback(async () => {
     try {
-      const { data, error } = await db.from('users');
+      // Charger depuis l'API backend
+      const response = await fetch(`${API_URL}/api/users`);
       
-      if (error) {
-        console.warn('Erreur lors du chargement des utilisateurs depuis la DB:', error);
-        // Utiliser les données mockées en fallback
+      if (!response.ok) {
+        console.warn('Erreur lors du chargement des utilisateurs depuis l\'API');
         return;
       }
+
+      const data = await response.json();
 
       if (data && data.length > 0) {
         // Convertir les données de la DB au format attendu
@@ -56,7 +58,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         setUsers(dbUsers);
         localStorage.setItem('posUsers', JSON.stringify(dbUsers));
-        console.log('✅ Utilisateurs chargés depuis la base de données:', dbUsers.length);
+        console.log('✅ Utilisateurs chargés depuis l\'API:', dbUsers.length);
       }
     } catch (error) {
       console.warn('Erreur lors du chargement des utilisateurs:', error);
@@ -126,6 +128,15 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Mettre à jour l'ID et le tenant_id avec ceux de la base de données
         newUser.id = dbUser.id;
         newUser.tenantId = dbUser.tenant_id;
+        
+        // Si c'est un propriétaire et qu'une licence d'essai a été créée
+        if (dbUser.trial_license) {
+          console.log('🎁 Licence d\'essai automatique créée:', dbUser.trial_license.key);
+          console.log('📅 Expire le:', new Date(dbUser.trial_license.expiry_date).toLocaleDateString());
+          
+          // La licence est déjà activée côté serveur, on recharge juste les licences
+          // Le LicenseContext se mettra à jour automatiquement
+        }
       }
     } catch (error) {
       console.error('❌ Erreur API lors de l\'ajout de l\'utilisateur:', error);
@@ -147,6 +158,39 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return 'email_exists';
     }
 
+    // Mettre à jour dans la base de données via l'API
+    try {
+      const response = await fetch(`${API_URL}/api/users/${updatedUser.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: updatedUser.email,
+          first_name: updatedUser.firstName,
+          last_name: updatedUser.lastName,
+          role: updatedUser.role.toLowerCase(),
+          assigned_store_id: updatedUser.assignedStoreId || null
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Erreur lors de la mise à jour de l\'utilisateur dans la DB:', errorData);
+        
+        if (errorData.error === 'email_exists') {
+          return 'email_exists';
+        }
+        throw new Error('Erreur lors de la mise à jour');
+      }
+
+      console.log('✅ Utilisateur mis à jour dans la base de données');
+    } catch (error) {
+      console.error('❌ Erreur API lors de la mise à jour de l\'utilisateur:', error);
+      throw error;
+    }
+
+    // Mettre à jour le state local
     const newUsers = users.map(user => user.id === updatedUser.id ? updatedUser : user);
     setUsers(newUsers);
     localStorage.setItem('posUsers', JSON.stringify(newUsers));
@@ -157,6 +201,25 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   const deleteUser = useCallback(async (userId: number): Promise<void> => {
     const userToDelete = users.find(u => u.id === userId);
+    
+    // Supprimer dans la base de données via l'API
+    try {
+      const response = await fetch(`${API_URL}/api/users/${userId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        console.error('❌ Erreur lors de la suppression de l\'utilisateur dans la DB');
+        throw new Error('Erreur lors de la suppression');
+      }
+
+      console.log('✅ Utilisateur supprimé de la base de données');
+    } catch (error) {
+      console.error('❌ Erreur API lors de la suppression de l\'utilisateur:', error);
+      throw error; // Propager l'erreur pour que l'UI puisse la gérer
+    }
+    
+    // Supprimer du state local
     const newUsers = users.filter(user => user.id !== userId);
     setUsers(newUsers);
     localStorage.setItem('posUsers', JSON.stringify(newUsers));
@@ -170,18 +233,48 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const user = users.find(u => u.id === userId);
     if (!user) return 'user_not_found';
 
-    if (user.password !== oldPass) {
-        await logAction(userId, user.username, 'Password Change Failed', 'Incorrect old password', user.tenantId);
-        return 'incorrect_password';
-    }
+    // Changer le mot de passe via l'API
+    try {
+      const response = await fetch(`${API_URL}/api/users/${userId}/password`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          old_password: oldPass,
+          new_password: newPass
+        }),
+      });
 
-    const updatedUser = { ...user, password: newPass };
-    const newUsers = users.map(u => (u.id === userId ? updatedUser : u));
-    setUsers(newUsers);
-    localStorage.setItem('posUsers', JSON.stringify(newUsers));
-    
-    await logAction(userId, user.username, 'Password Change', 'Password updated successfully', user.tenantId);
-    return 'success';
+      if (!response.ok) {
+        const errorData = await response.json();
+        
+        if (errorData.error === 'incorrect_password') {
+          await logAction(userId, user.username, 'Password Change Failed', 'Incorrect old password', user.tenantId);
+          return 'incorrect_password';
+        }
+        
+        if (errorData.error === 'user_not_found') {
+          return 'user_not_found';
+        }
+        
+        throw new Error('Erreur lors du changement de mot de passe');
+      }
+
+      console.log('✅ Mot de passe changé dans la base de données');
+      
+      // Mettre à jour le mot de passe localement (pour la compatibilité)
+      const updatedUser = { ...user, password: newPass };
+      const newUsers = users.map(u => (u.id === userId ? updatedUser : u));
+      setUsers(newUsers);
+      localStorage.setItem('posUsers', JSON.stringify(newUsers));
+      
+      await logAction(userId, user.username, 'Password Change', 'Password updated successfully', user.tenantId);
+      return 'success';
+    } catch (error) {
+      console.error('❌ Erreur API lors du changement de mot de passe:', error);
+      throw error;
+    }
   }, [users, logAction]);
 
   return (

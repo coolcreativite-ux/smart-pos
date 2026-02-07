@@ -111,8 +111,11 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
 
     if (sendInvite && isSuperAdmin) {
         try {
+            console.log('🔐 Génération du mot de passe et de l\'email d\'invitation...');
+            
             // Générer un mot de passe aléatoire sécurisé
             const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase();
+            console.log('✅ Mot de passe généré');
             
             // Sauvegarder le mot de passe dans formData pour l'utiliser plus tard
             setFormData(prev => ({ ...prev, password: randomPassword }));
@@ -125,8 +128,13 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
                 storeName: settings.storeName,
                 role: t(formData.role)
             });
+            
+            console.log('✅ Email généré, affichage de l\'aperçu');
+            console.log('📧 Message:', message.substring(0, 100) + '...');
+            
             setInvitationMessage(message);
         } catch (err) {
+            console.error('❌ Erreur génération invitation:', err);
             addToast("Erreur lors de la génération de l'invitation.", 'error');
         }
     } else {
@@ -207,6 +215,14 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
     }) as Array<keyof Permissions>;
   }, [permissions, isSuperAdmin]);
 
+  // Debug logging
+  console.log('🔍 AddUserModal State:', {
+    invitationMessage: invitationMessage ? 'SET' : 'NULL',
+    isSuperAdmin,
+    sendInvite,
+    currentUserRole: currentUser?.role
+  });
+
   return createPortal(
     <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center z-[9999] p-4" onClick={onClose}>
       <div 
@@ -214,8 +230,8 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
         onClick={e => e.stopPropagation()}
       >
         {invitationMessage && isSuperAdmin ? (
-          <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="p-8 border-b border-slate-100 dark:border-slate-800 bg-emerald-50 dark:bg-emerald-900/10 flex justify-between items-start">
+          <div className="flex flex-col max-h-[90vh] animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="p-8 border-b border-slate-100 dark:border-slate-800 bg-emerald-50 dark:bg-emerald-900/10 flex justify-between items-start flex-shrink-0">
                 <div>
                     <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-emerald-500/20">
                         {isDelivering ? <Spinner size="md" color="white" /> : (
@@ -254,7 +270,8 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
                 </div>
             </div>
 
-            <div className="p-8 border-t border-slate-100 dark:border-slate-800 flex gap-4">
+            <div className="p-8 border-t border-slate-100 dark:border-slate-800 flex gap-4 flex-shrink-0 bg-white dark:bg-slate-900">
+                {console.log('🔘 Rendu de la section bouton, isEditingMessage:', isEditingMessage)}
                 {isEditingMessage ? (
                     <button onClick={() => setIsEditingMessage(false)} className="flex-1 py-4 bg-emerald-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-700 transition-all">
                         Terminer l'édition

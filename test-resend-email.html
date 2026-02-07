@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Resend Email - Smart POS</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f3f4f6;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 150px;
+            font-family: inherit;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        .result.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+        .result.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+        .info {
+            background: #dbeafe;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3b82f6;
+        }
+        .info strong {
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Resend Email</h1>
+        
+        <div class="info">
+            <strong>📧 Domaine de test Resend:</strong> onboarding@resend.dev<br>
+            <strong>⚠️ Important:</strong> Les emails de test sont envoyés uniquement à votre adresse email vérifiée sur Resend.
+        </div>
+
+        <form id="emailForm">
+            <div class="form-group">
+                <label for="to">Destinataire (votre email):</label>
+                <input type="email" id="to" required placeholder="votre@email.com">
+            </div>
+
+            <div class="form-group">
+                <label for="subject">Sujet:</label>
+                <input type="text" id="subject" required value="Test Email Smart POS">
+            </div>
+
+            <div class="form-group">
+                <label for="body">Message:</label>
+                <textarea id="body" required>Bonjour,
+
+Ceci est un email de test depuis Smart POS.
+
+**Fonctionnalités testées:**
+- Envoi via Resend
+- Formatage HTML
+- Template professionnel
+
+Cordialement,
+L'équipe Smart POS</textarea>
+            </div>
+
+            <button type="submit" id="sendBtn">📧 Envoyer l'Email de Test</button>
+        </form>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        const RESEND_API_KEY = 're_Vk2S1yZd_Bve3Wmz2VBdxMqBBTAExNvjg';
+        const FROM_EMAIL = 'onboarding@resend.dev';
+        const FROM_NAME = 'Smart POS';
+
+        document.getElementById('emailForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const sendBtn = document.getElementById('sendBtn');
+            const result = document.getElementById('result');
+            
+            sendBtn.disabled = true;
+            sendBtn.textContent = '⏳ Envoi en cours...';
+            result.style.display = 'none';
+
+            const to = document.getElementById('to').value;
+            const subject = document.getElementById('subject').value;
+            const body = document.getElementById('body').value;
+
+            try {
+                const response = await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${RESEND_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        from: `${FROM_NAME} <${FROM_EMAIL}>`,
+                        to: [to],
+                        subject: subject,
+                        html: convertToHtml(body)
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Erreur lors de l\'envoi');
+                }
+
+                result.className = 'result success';
+                result.style.display = 'block';
+                result.innerHTML = `
+                    ✅ <strong>Email envoyé avec succès!</strong><br>
+                    ID: ${data.id}<br>
+                    Vérifiez votre boîte de réception: ${to}
+                `;
+            } catch (error) {
+                result.className = 'result error';
+                result.style.display = 'block';
+                result.innerHTML = `
+                    ❌ <strong>Erreur:</strong> ${error.message}<br>
+                    <small>Vérifiez que votre email est bien vérifié sur Resend.</small>
+                `;
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = '📧 Envoyer l\'Email de Test';
+            }
+        });
+
+        function convertToHtml(text) {
+            let html = text
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/^\- (.+)$/gm, '<li>$1</li>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+
+            html = html.replace(/(<li.+<\/li>)/s, '<ul>$1</ul>');
+
+            return `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                </head>
+                <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+                        <h1 style="color: white; margin: 0; font-size: 28px;">Smart POS</h1>
+                    </div>
+                    <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+                        <p>${html}</p>
+                    </div>
+                    <div style="text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px;">
+                        <p>© ${new Date().getFullYear()} Smart POS. Tous droits réservés.</p>
+                    </div>
+                </body>
+                </html>
+            `;
+        }
+    </script>
+</body>
+</html>

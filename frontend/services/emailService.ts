@@ -12,22 +12,22 @@ const FROM_EMAIL = import.meta.env.VITE_FROM_EMAIL || 'noreply@geminipos.com';
 const FROM_NAME = import.meta.env.VITE_FROM_NAME || 'Gemini POS';
 
 /**
- * Envoie un email via Resend (recommandé - le plus simple)
+ * Envoie un email via Resend (via le backend pour éviter CORS)
  * Documentation : https://resend.com/docs/send-with-nodejs
  */
 const sendViaResend = async (to: string, subject: string, body: string): Promise<boolean> => {
     try {
-        const response = await fetch('https://api.resend.com/emails', {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        
+        const response = await fetch(`${API_URL}/api/send-email`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${RESEND_API_KEY}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                from: `${FROM_NAME} <${FROM_EMAIL}>`,
-                to: [to],
-                subject: subject,
-                html: convertMarkdownToHtml(body)
+                to,
+                subject,
+                body
             })
         });
 
@@ -38,7 +38,7 @@ const sendViaResend = async (to: string, subject: string, body: string): Promise
         }
 
         const data = await response.json();
-        console.log('✅ Email envoyé via Resend:', data.id);
+        console.log('✅ Email envoyé via Resend:', data.emailId || 'simulated');
         return true;
     } catch (error) {
         console.error('❌ Erreur lors de l\'envoi via Resend:', error);

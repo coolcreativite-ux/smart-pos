@@ -3,8 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "dev": "tsx watch server.ts",
-    "start": "node dist/server.js",
+    "dev": "set NODE_ENV=development&& tsx watch server.ts",
+    "start": "set NODE_ENV=production&& node dist/server.js",
     "build": "tsc",
     "db:setup": "psql -U postgres -d postgres -f ../database/setup.sql",
     "db:schema": "psql -U postgres -d gemini_pos_dev -f ../database/schema.sql"

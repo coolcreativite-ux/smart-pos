@@ -4,8 +4,12 @@ import { Pool } from 'pg';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 
-// Charger les variables d'environnement
-dotenv.config({ path: '.env.production' });
+// Charger les variables d'environnement selon l'environnement
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
+dotenv.config({ path: envFile });
+
+console.log(`🔧 Environnement: ${process.env.NODE_ENV || 'development'}`);
+console.log(`📁 Fichier .env chargé: ${envFile}`);
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -118,6 +122,84 @@ app.get('/api/health', async (req, res) => {
       database: 'disconnected',
       error: error.message 
     });
+  }
+});
+
+// ===== EMAIL ENDPOINT =====
+app.post('/api/send-email', async (req, res) => {
+  try {
+    const { to, subject, body } = req.body;
+    
+    if (!to || !subject || !body) {
+      return res.status(400).json({ error: 'Missing required fields: to, subject, body' });
+    }
+
+    const RESEND_API_KEY = process.env.RESEND_API_KEY || process.env.VITE_RESEND_API_KEY;
+    const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+    const FROM_NAME = process.env.FROM_NAME || 'Smart POS';
+
+    if (!RESEND_API_KEY) {
+      console.log('⚠️ RESEND_API_KEY non configurée, simulation d\'envoi');
+      return res.json({ 
+        success: true, 
+        simulated: true,
+        message: 'Email simulé (RESEND_API_KEY non configurée)' 
+      });
+    }
+
+    // Convertir Markdown en HTML simple
+    const htmlBody = body
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`(.+?)`/g, '<code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">$1</code>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>');
+
+    const htmlTemplate = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"></head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+          <h1 style="color: white; margin: 0;">Smart POS</h1>
+        </div>
+        <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+          <p>${htmlBody}</p>
+        </div>
+        <div style="text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px;">
+          <p>© ${new Date().getFullYear()} Smart POS. Tous droits réservés.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Appel à l'API Resend
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: `${FROM_NAME} <${FROM_EMAIL}>`,
+        to: [to],
+        subject: subject,
+        html: htmlTemplate
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('❌ Erreur Resend:', error);
+      return res.status(500).json({ error: 'Failed to send email', details: error });
+    }
+
+    const data = await response.json();
+    console.log('✅ Email envoyé via Resend:', data.id);
+    
+    res.json({ success: true, emailId: data.id });
+  } catch (error) {
+    console.error('❌ Erreur envoi email:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 

@@ -5,10 +5,14 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
-      root: '.',
+      root: path.resolve(__dirname, '.'),
+      publicDir: 'public',
       build: {
         outDir: 'dist',
         emptyOutDir: true,
+        rollupOptions: {
+          input: path.resolve(__dirname, 'index.html')
+        }
       },
       server: {
         port: 3000,

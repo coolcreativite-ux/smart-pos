@@ -53,10 +53,5 @@ backend/.env*
 /server
 /services
 /lib
-App.tsx
-manifest.json
-sw.js
-types.ts
-constants.ts
 
 

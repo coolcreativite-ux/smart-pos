@@ -5,13 +5,13 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
-      root: path.resolve(__dirname, '.'),
+      root: '.',
       publicDir: 'public',
       build: {
         outDir: 'dist',
         emptyOutDir: true,
         rollupOptions: {
-          input: path.resolve(__dirname, 'index.html')
+          input: './index.html'
         }
       },
       server: {

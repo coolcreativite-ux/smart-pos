@@ -55,7 +55,6 @@ backend/.env*
 /lib
 App.tsx
 index.tsx
-index.html
 manifest.json
 sw.js
 types.ts

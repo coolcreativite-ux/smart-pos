@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, ReactNode, useCallback, useC
 import { Settings } from '../types';
 import { DEFAULT_SETTINGS } from '../constants';
 import { useAuth } from './AuthContext';
+import { API_URL } from '../config';
 
 interface SettingsContextType {
   settings: Settings;
@@ -42,7 +43,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/settings/${user.tenantId}`);
+      const response = await fetch(`${API_URL}/api/settings/${user.tenantId}`);
       if (response.ok) {
         const data = await response.json();
         
@@ -96,7 +97,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     try {
       // Sauvegarder vers l'API
-      const response = await fetch(`http://localhost:5000/api/settings/${user.tenantId}`, {
+      const response = await fetch(`${API_URL}/api/settings/${user.tenantId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

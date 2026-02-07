@@ -5,6 +5,7 @@ import { MOCK_PRODUCTS } from '../constants';
 import { useStores } from './StoreContext';
 import { useAuth } from './AuthContext';
 import { db } from '../lib/database';
+import { API_URL } from '../config';
 
 interface ProductContextType {
   products: Product[];
@@ -210,7 +211,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const updateInventoryInDB = async (variantId: number, storeId: number, change: number, reason: StockChangeReason, user: User, notes?: string) => {
     try {
       // Mettre à jour l'inventaire via l'API
-      await fetch('http://localhost:5000/api/inventory/update', {
+      await fetch('${API_URL}/api/inventory/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

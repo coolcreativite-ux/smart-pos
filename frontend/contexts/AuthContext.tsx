@@ -3,6 +3,7 @@ import React, { createContext, useState, ReactNode, useCallback, useContext, use
 import { User, UserRole } from '../types';
 import { useUsers } from './UserContext';
 import { useLicenses } from './LicenseContext';
+import { API_URL } from '../config';
 
 interface AuthContextType {
   user: User | null;
@@ -45,7 +46,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = useCallback(async (username: string, password: string): Promise<boolean> => {
     try {
       // Appeler l'API backend pour l'authentification
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch('${API_URL}/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -4,6 +4,7 @@ import { User, UserRole } from '../types';
 import { MOCK_USERS } from '../constants';
 import { useActionLog } from './ActionLogContext';
 import { db } from '../lib/database';
+import { API_URL } from '../config';
 
 type PasswordChangeResult = 'success' | 'incorrect_password' | 'user_not_found';
 type AddUserResult = 'success' | 'username_exists' | 'email_exists';
@@ -90,7 +91,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Sauvegarder dans la base de données via l'API
     try {
-      const response = await fetch('http://localhost:5000/api/users', {
+      const response = await fetch('${API_URL}/api/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

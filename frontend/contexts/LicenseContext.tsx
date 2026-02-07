@@ -2,6 +2,7 @@
 import React, { createContext, useState, ReactNode, useCallback, useEffect, useContext } from 'react';
 import { License } from '../types';
 import { VALID_LICENSE_KEY } from '../constants';
+import { API_URL } from '../config';
 
 interface LicenseContextType {
   licenses: License[];
@@ -23,7 +24,7 @@ export const LicenseProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     const loadLicenses = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/licenses');
+        const response = await fetch('${API_URL}/api/licenses');
         if (response.ok) {
           const dbLicenses = await response.json();
           const formattedLicenses = dbLicenses.map((l: any) => ({
@@ -125,7 +126,7 @@ export const LicenseProvider: React.FC<{ children: ReactNode }> = ({ children })
     
     // Sauvegarder dans la base de données
     try {
-      const response = await fetch('http://localhost:5000/api/licenses', {
+      const response = await fetch('${API_URL}/api/licenses', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -231,7 +232,7 @@ export const LicenseProvider: React.FC<{ children: ReactNode }> = ({ children })
       // Mettre à jour dans la base de données
       if (success && licenseToUpdate) {
           try {
-              const response = await fetch(`http://localhost:5000/api/licenses/${licenseToUpdate.id}`, {
+              const response = await fetch(`${API_URL}/api/licenses/${licenseToUpdate.id}`, {
                   method: 'PATCH',
                   headers: {
                       'Content-Type': 'application/json',

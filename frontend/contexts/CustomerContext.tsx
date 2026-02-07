@@ -5,6 +5,7 @@ import { MOCK_CUSTOMERS } from '../constants';
 import { useStores } from './StoreContext';
 import { useAuth } from './AuthContext';
 import { db } from '../lib/database';
+import { API_URL } from '../config';
 
 interface CustomerContextType {
   customers: Customer[];
@@ -96,7 +97,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     
     try {
       // Ajouter en base de données
-      const response = await fetch('http://localhost:5000/api/customers', {
+      const response = await fetch('${API_URL}/api/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -145,7 +146,7 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
   const updateCustomer = useCallback(async (customerData: Customer) => {
     try {
       // Mettre à jour en base de données
-      await fetch(`http://localhost:5000/api/customers/${customerData.id}`, {
+      await fetch(`${API_URL}/api/customers/${customerData.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

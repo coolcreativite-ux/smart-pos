@@ -1,6 +1,7 @@
 
 import React, { createContext, useState, ReactNode, useCallback, useContext, useEffect } from 'react';
 import { ActionLogEntry } from '../types';
+import { API_URL } from '../config';
 
 interface ActionLogContextType {
   logs: ActionLogEntry[];
@@ -17,7 +18,7 @@ export const ActionLogProvider: React.FC<{ children: ReactNode }> = ({ children 
   // Charger les logs depuis la base de données
   const loadLogs = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/action-logs');
+      const response = await fetch('${API_URL}/api/action-logs');
       if (response.ok) {
         const data = await response.json();
         // Convertir les timestamps en objets Date
@@ -74,7 +75,7 @@ export const ActionLogProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     try {
       // Sauvegarder en base de données
-      const response = await fetch('http://localhost:5000/api/action-logs', {
+      const response = await fetch('${API_URL}/api/action-logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

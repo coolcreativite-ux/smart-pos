@@ -5,6 +5,7 @@ import { MOCK_STORES } from '../constants';
 import { useActionLog } from './ActionLogContext';
 import { useAuth } from './AuthContext';
 import { db } from '../lib/database';
+import { API_URL } from '../config';
 
 interface StoreContextType {
   stores: Store[];
@@ -118,7 +119,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     
     try {
       // Ajouter en base de données
-      const response = await fetch('http://localhost:5000/api/stores', {
+      const response = await fetch('${API_URL}/api/stores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -158,7 +159,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const updateStore = useCallback(async (updatedStore: Store) => {
     try {
       // Mettre à jour en base de données
-      await fetch(`http://localhost:5000/api/stores/${updatedStore.id}`, {
+      await fetch(`${API_URL}/api/stores/${updatedStore.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -179,7 +180,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const deleteStore = useCallback(async (storeId: number) => {
     try {
       // Supprimer en base de données
-      await fetch(`http://localhost:5000/api/stores/${storeId}`, {
+      await fetch(`${API_URL}/api/stores/${storeId}`, {
         method: 'DELETE'
       });
     } catch (error) {

@@ -24,7 +24,7 @@ export const LicenseProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     const loadLicenses = async () => {
       try {
-        const response = await fetch('${API_URL}/api/licenses');
+        const response = await fetch(`${API_URL}/api/licenses`);
         if (response.ok) {
           const dbLicenses = await response.json();
           const formattedLicenses = dbLicenses.map((l: any) => ({

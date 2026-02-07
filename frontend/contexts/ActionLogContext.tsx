@@ -18,7 +18,7 @@ export const ActionLogProvider: React.FC<{ children: ReactNode }> = ({ children 
   // Charger les logs depuis la base de données
   const loadLogs = useCallback(async () => {
     try {
-      const response = await fetch('${API_URL}/api/action-logs');
+      const response = await fetch(`${API_URL}/api/action-logs`);
       if (response.ok) {
         const data = await response.json();
         // Convertir les timestamps en objets Date

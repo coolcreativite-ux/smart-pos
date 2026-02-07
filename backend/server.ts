@@ -914,6 +914,95 @@ app.post('/api/inventory/update', async (req, res) => {
   }
 });
 
+// ===== APP SETTINGS (PERSONNALISATION) =====
+
+// GET - Récupérer tous les paramètres ou par catégorie
+app.get('/api/app-settings', async (req, res) => {
+  try {
+    console.log('📋 GET /api/app-settings appelé');
+    const { category } = req.query;
+    
+    let query = 'SELECT * FROM app_settings';
+    const params: any[] = [];
+    
+    if (category) {
+      query += ' WHERE category = $1';
+      params.push(category);
+    }
+    
+    query += ' ORDER BY category, key';
+    
+    console.log('🔍 Exécution query:', query);
+    const result = await pool.query(query, params);
+    console.log(`✅ ${result.rows.length} paramètres récupérés`);
+    
+    // Transformer en objet clé-valeur
+    const settings: Record<string, any> = {};
+    result.rows.forEach((row: any) => {
+      // Parser JSON si nécessaire
+      try {
+        settings[row.key] = JSON.parse(row.value);
+      } catch {
+        settings[row.key] = row.value;
+      }
+    });
+    
+    res.json(settings);
+  } catch (error: any) {
+    console.error('❌ Error fetching app_settings:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
+// PUT - Mettre à jour un paramètre (SuperAdmin uniquement)
+app.put('/api/app-settings/:key', async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { value } = req.body;
+    
+    // Convertir en string si c'est un objet/array
+    const valueStr = typeof value === 'object' ? JSON.stringify(value) : value;
+    
+    const result = await pool.query(
+      `UPDATE app_settings 
+       SET value = $1, updated_at = NOW() 
+       WHERE key = $2 
+       RETURNING *`,
+      [valueStr, key]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Setting not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error('Error updating setting:', error);
+    res.status(500).json({ error: 'Failed to update setting' });
+  }
+});
+
+// POST - Créer un nouveau paramètre (SuperAdmin uniquement)
+app.post('/api/app-settings', async (req, res) => {
+  try {
+    const { key, value, category, description } = req.body;
+    
+    const valueStr = typeof value === 'object' ? JSON.stringify(value) : value;
+    
+    const result = await pool.query(
+      `INSERT INTO app_settings (key, value, category, description) 
+       VALUES ($1, $2, $3, $4) 
+       RETURNING *`,
+      [key, valueStr, category, description]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (error: any) {
+    console.error('Error creating setting:', error);
+    res.status(500).json({ error: 'Failed to create setting' });
+  }
+});
+
 // ===== ROUTES GÉNÉRIQUES (APRÈS LES ROUTES SPÉCIFIQUES) =====
 app.get('/api/:table', async (req, res) => {
   try {

@@ -18,7 +18,7 @@ const SuperAdminPage: React.FC = () => {
     const { t, language } = useLanguage();
     const { addToast } = useToast();
     
-    const [activeTab, setActiveTab] = useState<'licenses' | 'owners' | 'roles'>('licenses');
+    const [activeTab, setActiveTab] = useState<'licenses' | 'owners' | 'roles' | 'customization'>('licenses');
     const [selectedOwnerId, setSelectedOwnerId] = useState('');
     const [selectedPeriod, setSelectedPeriod] = useState('12'); // 1 an par défaut
     const [selectedPlan, setSelectedPlan] = useState<License['plan']>('BUSINESS_PRO');
@@ -38,7 +38,62 @@ const SuperAdminPage: React.FC = () => {
         return saved ? JSON.parse(saved) : ROLE_PERMISSIONS;
     });
 
+    // États pour la personnalisation
+    const [appSettings, setAppSettings] = useState<Record<string, any>>({});
+    const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+    const [isSavingSettings, setIsSavingSettings] = useState(false);
+
     const owners = useMemo(() => users.filter(u => u.role === UserRole.Owner), [users]);
+
+    // Charger les paramètres de personnalisation
+    useEffect(() => {
+        loadSettings();
+    }, []);
+
+    const loadSettings = async () => {
+        try {
+            setIsLoadingSettings(true);
+            const response = await fetch('http://localhost:5000/api/app-settings');
+            if (response.ok) {
+                const data = await response.json();
+                setAppSettings(data);
+                console.log('✅ Paramètres chargés:', data);
+            }
+        } catch (error) {
+            console.error('Erreur chargement paramètres:', error);
+            addToast('Erreur lors du chargement des paramètres', 'error');
+        } finally {
+            setIsLoadingSettings(false);
+        }
+    };
+
+    const handleSettingChange = (key: string, value: any) => {
+        setAppSettings(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handleSaveSettings = async () => {
+        try {
+            setIsSavingSettings(true);
+            
+            // Sauvegarder tous les paramètres modifiés
+            const promises = Object.entries(appSettings).map(([key, value]) =>
+                fetch(`http://localhost:5000/api/app-settings/${key}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ value })
+                })
+            );
+            
+            await Promise.all(promises);
+            addToast('Paramètres sauvegardés avec succès !', 'success');
+            await loadSettings(); // Recharger pour confirmer
+        } catch (error) {
+            console.error('Erreur sauvegarde paramètres:', error);
+            addToast('Erreur lors de la sauvegarde', 'error');
+        } finally {
+            setIsSavingSettings(false);
+        }
+    };
 
     const handleGenerateLicense = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -197,6 +252,12 @@ const SuperAdminPage: React.FC = () => {
                         className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'roles' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                     >
                         Rôles & Permissions
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('customization')} 
+                        className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'customization' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                    >
+                        Personnalisation
                     </button>
                 </div>
             </div>
@@ -466,6 +527,224 @@ const SuperAdminPage: React.FC = () => {
                             </p>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {activeTab === 'customization' && (
+                <div className="space-y-6">
+                    {isLoadingSettings ? (
+                        <div className="flex justify-center items-center py-20">
+                            <Spinner size="lg" />
+                        </div>
+                    ) : (
+                        <>
+                            {/* Section Branding */}
+                            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700">
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase tracking-tight">🎨 Branding</h3>
+                                <div className="grid grid-cols-1 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Nom de l'Application</label>
+                                        <input 
+                                            type="text"
+                                            value={appSettings.app_name || ''}
+                                            onChange={(e) => handleSettingChange('app_name', e.target.value)}
+                                            placeholder="Smart POS"
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-1">Valeur actuelle: {appSettings.app_name || 'Smart POS'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Slogan</label>
+                                        <input 
+                                            type="text"
+                                            value={appSettings.app_slogan || ''}
+                                            onChange={(e) => handleSettingChange('app_slogan', e.target.value)}
+                                            placeholder="Gérez votre commerce avec l'intelligence artificielle"
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-1">Valeur actuelle: {appSettings.app_slogan || 'Gérez votre commerce avec l\'intelligence artificielle'}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section Landing Page */}
+                            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700">
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase tracking-tight">🏠 Landing Page - Hero</h3>
+                                <div className="grid grid-cols-1 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Badge</label>
+                                        <input 
+                                            type="text"
+                                            value={appSettings.landing_hero_badge || ''}
+                                            onChange={(e) => handleSettingChange('landing_hero_badge', e.target.value)}
+                                            placeholder="Propulsé par l'IA"
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-1">Valeur actuelle: {appSettings.landing_hero_badge || 'Propulsé par l\'IA'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Titre Principal</label>
+                                        <textarea 
+                                            value={appSettings.landing_hero_title || ''}
+                                            onChange={(e) => handleSettingChange('landing_hero_title', e.target.value)}
+                                            placeholder="Gérez votre commerce avec l'intelligence artificielle."
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                            rows={2}
+                                        />
+                                        <p className="text-xs text-slate-500 mt-1">Valeur actuelle: {appSettings.landing_hero_title || 'Gérez votre commerce avec l\'intelligence artificielle.'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Sous-titre</label>
+                                        <textarea 
+                                            value={appSettings.landing_hero_subtitle || ''}
+                                            onChange={(e) => handleSettingChange('landing_hero_subtitle', e.target.value)}
+                                            placeholder="Le premier système de point de vente qui analyse vos stocks..."
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                            rows={3}
+                                        />
+                                        <p className="text-xs text-slate-500 mt-1">Valeur actuelle: {appSettings.landing_hero_subtitle?.substring(0, 50) || 'Le premier système de point de vente...'}...</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section Features */}
+                            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700">
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase tracking-tight">⭐ Features (3 blocs)</h3>
+                                <div className="space-y-8">
+                                    {[1, 2, 3].map(num => (
+                                        <div key={num} className="p-6 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-200 dark:border-slate-600">
+                                            <h4 className="font-bold text-indigo-600 dark:text-indigo-400 mb-4">Feature {num}</h4>
+                                            <div className="grid grid-cols-1 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Titre</label>
+                                                    <input 
+                                                        type="text"
+                                                        value={appSettings[`landing_feature_${num}_title`] || ''}
+                                                        onChange={(e) => handleSettingChange(`landing_feature_${num}_title`, e.target.value)}
+                                                        className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Description</label>
+                                                    <textarea 
+                                                        value={appSettings[`landing_feature_${num}_desc`] || ''}
+                                                        onChange={(e) => handleSettingChange(`landing_feature_${num}_desc`, e.target.value)}
+                                                        className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                                        rows={2}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Section Plans de Licence */}
+                            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700">
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase tracking-tight">💳 Plans de Licence</h3>
+                                <div className="space-y-8">
+                                    {['starter', 'business', 'enterprise'].map(plan => (
+                                        <div key={plan} className="p-6 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-200 dark:border-slate-600">
+                                            <h4 className="font-bold text-indigo-600 dark:text-indigo-400 mb-4 uppercase">{plan}</h4>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Nom</label>
+                                                    <input 
+                                                        type="text"
+                                                        value={appSettings[`license_plan_${plan}_name`] || ''}
+                                                        onChange={(e) => handleSettingChange(`license_plan_${plan}_name`, e.target.value)}
+                                                        className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Prix (FCFA)</label>
+                                                    <input 
+                                                        type="text"
+                                                        value={appSettings[`license_plan_${plan}_price`] || ''}
+                                                        onChange={(e) => handleSettingChange(`license_plan_${plan}_price`, e.target.value)}
+                                                        className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Durée</label>
+                                                    <input 
+                                                        type="text"
+                                                        value={appSettings[`license_plan_${plan}_period`] || ''}
+                                                        onChange={(e) => handleSettingChange(`license_plan_${plan}_period`, e.target.value)}
+                                                        className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Features (une par ligne)</label>
+                                                    <textarea 
+                                                        value={Array.isArray(appSettings[`license_plan_${plan}_features`]) ? appSettings[`license_plan_${plan}_features`].join('\n') : ''}
+                                                        onChange={(e) => handleSettingChange(`license_plan_${plan}_features`, e.target.value.split('\n').filter(f => f.trim()))}
+                                                        className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                                        rows={3}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Section Contact */}
+                            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700">
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase tracking-tight">📞 Informations de Contact</h3>
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Téléphone</label>
+                                        <input 
+                                            type="tel"
+                                            value={appSettings.contact_phone || ''}
+                                            onChange={(e) => handleSettingChange('contact_phone', e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">WhatsApp</label>
+                                        <input 
+                                            type="tel"
+                                            value={appSettings.contact_whatsapp || ''}
+                                            onChange={(e) => handleSettingChange('contact_whatsapp', e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Email Contact</label>
+                                        <input 
+                                            type="email"
+                                            value={appSettings.contact_email || ''}
+                                            onChange={(e) => handleSettingChange('contact_email', e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Email Commercial</label>
+                                        <input 
+                                            type="email"
+                                            value={appSettings.sales_email || ''}
+                                            onChange={(e) => handleSettingChange('sales_email', e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-slate-900 dark:text-white"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Bouton Enregistrer */}
+                            <div className="sticky bottom-0 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-2xl border border-indigo-100 dark:border-indigo-900/30">
+                                <button 
+                                    onClick={handleSaveSettings}
+                                    disabled={isSavingSettings}
+                                    className="w-full py-5 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-500/20 uppercase tracking-widest text-sm disabled:bg-slate-400"
+                                >
+                                    {isSavingSettings ? <Spinner size="sm" /> : <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/></svg>}
+                                    {isSavingSettings ? 'Enregistrement...' : 'Enregistrer Toutes les Modifications'}
+                                </button>
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 

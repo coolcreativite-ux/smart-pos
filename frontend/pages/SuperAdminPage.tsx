@@ -11,6 +11,7 @@ import AddUserModal from '../components/AddUserModal';
 import { generateLicenseEmail } from '../services/geminiService';
 import { sendRealEmail } from '../services/emailService';
 import ReactMarkdown from 'react-markdown';
+import { API_URL } from '../config';
 
 const SuperAdminPage: React.FC = () => {
     const { licenses, generateLicense, revokeLicense } = useLicenses();
@@ -53,7 +54,7 @@ const SuperAdminPage: React.FC = () => {
     const loadSettings = async () => {
         try {
             setIsLoadingSettings(true);
-            const response = await fetch('http://localhost:5000/api/app-settings');
+            const response = await fetch(`${API_URL}/api/app-settings`);
             if (response.ok) {
                 const data = await response.json();
                 setAppSettings(data);
@@ -77,7 +78,7 @@ const SuperAdminPage: React.FC = () => {
             
             // Sauvegarder tous les paramètres modifiés
             const promises = Object.entries(appSettings).map(([key, value]) =>
-                fetch(`http://localhost:5000/api/app-settings/${key}`, {
+                fetch(`${API_URL}/api/app-settings/${key}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ value })

@@ -3,15 +3,16 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>SmartPOS - Point de Vente Intelligent</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="manifest" href="/manifest.json" />
   
   <!-- PWA iOS Support -->
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SmartPOS" />
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2554/2554978.png" />
   
@@ -37,6 +38,26 @@
     })();
   </script>
   <style>
+    /* Amélioration de la netteté sur mobile et écrans haute résolution */
+    * {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+    
+    /* Optimisation pour les écrans Retina */
+    @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+      body {
+        -webkit-font-smoothing: subpixel-antialiased;
+      }
+    }
+    
+    /* Amélioration du contraste pour une meilleure lisibilité */
+    body {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    
     /* Custom scrollbar for a more modern look */
     /* Light Theme Scrollbar */
     ::-webkit-scrollbar {
@@ -85,6 +106,17 @@
     }
     input, textarea {
         user-select: text;
+    }
+    
+    /* Amélioration de la lisibilité des petits textes sur mobile */
+    @media (max-width: 640px) {
+      body {
+        font-size: 16px; /* Évite le zoom automatique sur iOS */
+      }
+      
+      input, textarea, select {
+        font-size: 16px; /* Évite le zoom automatique lors du focus */
+      }
     }
   </style>
 <script type="importmap">

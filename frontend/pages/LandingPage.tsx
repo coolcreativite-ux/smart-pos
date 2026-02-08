@@ -58,70 +58,70 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white selection:bg-indigo-500 selection:text-white">
             {/* Navbar Flottante */}
             <nav className={`fixed top-6 left-1/2 -translate-x-1/2 z-[100] w-[95%] max-w-6xl transition-all duration-500 ${isScrolled ? 'top-4' : 'top-8'}`}>
-                <div className={`flex items-center justify-between px-6 py-3 rounded-2xl border transition-all duration-500 ${isScrolled ? 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-slate-200 dark:border-slate-700 shadow-2xl' : 'bg-transparent border-transparent'}`}>
+                <div className={`flex items-center justify-between px-4 sm:px-6 py-3 rounded-2xl border transition-all duration-500 ${isScrolled ? 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-slate-200 dark:border-slate-700 shadow-2xl' : 'bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-slate-200/50 dark:border-slate-700/50 shadow-lg'}`}>
                     <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                         <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform">
                             <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2L2 7V17L12 22L22 17V7L12 2Z" />
                             </svg>
                         </div>
-                        <span className="text-xl font-black tracking-tighter uppercase">SMART<span className="text-indigo-600">POS</span></span>
+                        <span className="text-lg sm:text-xl font-black tracking-tighter uppercase">SMART<span className="text-indigo-600">POS</span></span>
                     </div>
 
                     <div className="hidden md:flex items-center gap-8">
-                        <button onClick={() => scrollToSection('product')} className="text-[10px] font-black text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-widest">Produit</button>
-                        <button onClick={() => scrollToSection('pricing')} className="text-[10px] font-black text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-widest">Tarifs</button>
-                        <button onClick={() => scrollToSection('faq')} className="text-[10px] font-black text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-widest">FAQ</button>
-                        <button onClick={() => setShowContactPicker({ isOpen: true })} className="text-[10px] font-black text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-widest">Contact</button>
+                        <button onClick={() => scrollToSection('product')} className="text-xs font-black text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors uppercase tracking-widest">Produit</button>
+                        <button onClick={() => scrollToSection('pricing')} className="text-xs font-black text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors uppercase tracking-widest">Tarifs</button>
+                        <button onClick={() => scrollToSection('faq')} className="text-xs font-black text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors uppercase tracking-widest">FAQ</button>
+                        <button onClick={() => setShowContactPicker({ isOpen: true })} className="text-xs font-black text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors uppercase tracking-widest">Contact</button>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <button onClick={onLoginClick} className="px-5 py-2.5 text-xs font-black uppercase text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all tracking-tighter">Connexion</button>
-                        <button onClick={onLoginClick} className="px-6 py-2.5 bg-indigo-600 text-white text-[10px] font-black rounded-xl shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all uppercase tracking-widest">Essayez gratuitement</button>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <button onClick={onLoginClick} className="px-3 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-black uppercase text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all tracking-tighter">Connexion</button>
+                        <button onClick={onLoginClick} className="px-4 sm:px-6 py-2 sm:py-2.5 bg-indigo-600 text-white text-xs sm:text-sm font-black rounded-xl shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all uppercase tracking-widest">Essayer</button>
                     </div>
                 </div>
             </nav>
 
             {/* Hero Section */}
-            <section className="pt-48 pb-20 px-6 overflow-hidden">
+            <section className="pt-32 sm:pt-48 pb-16 sm:pb-20 px-4 sm:px-6 overflow-hidden">
                 <div className="max-w-7xl mx-auto text-center relative">
                     <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/20 blur-[120px] rounded-full -z-10 animate-pulse"></div>
-                    <span className="inline-block px-4 py-1.5 mb-6 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-black uppercase tracking-[0.2em] animate-fade-in-up">{settings.landing_hero_badge}</span>
-                    <h1 className="text-6xl md:text-8xl font-black text-slate-900 dark:text-white leading-[1] tracking-tighter mb-8 animate-fade-in-up">
+                    <span className="inline-block px-4 py-2 mb-6 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-xs sm:text-sm font-black uppercase tracking-wider animate-fade-in-up">{settings.landing_hero_badge}</span>
+                    <h1 className="text-4xl sm:text-6xl md:text-8xl font-black text-slate-900 dark:text-white leading-[1.1] tracking-tighter mb-6 sm:mb-8 animate-fade-in-up px-4">
                         {settings.landing_hero_title.split('l\'intelligence artificielle')[0]}
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-500">l'intelligence artificielle.</span>
                     </h1>
-                    <p className="max-w-2xl mx-auto text-lg text-slate-500 dark:text-slate-400 font-medium mb-12 animate-fade-in-up [animation-delay:200ms]">
+                    <p className="max-w-2xl mx-auto text-base sm:text-lg text-slate-600 dark:text-slate-300 font-medium mb-8 sm:mb-12 animate-fade-in-up [animation-delay:200ms] px-4 leading-relaxed">
                         {settings.landing_hero_subtitle}
                     </p>
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up [animation-delay:400ms]">
-                        <button onClick={onLoginClick} className="w-full sm:w-auto px-10 py-5 bg-indigo-600 text-white font-black rounded-[2rem] text-sm shadow-2xl shadow-indigo-500/40 hover:bg-indigo-700 hover:scale-105 transition-all uppercase tracking-widest">Essayez gratuitement</button>
-                        <button onClick={onLoginClick} className="w-full sm:w-auto px-10 py-5 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-black rounded-[2rem] text-sm border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all uppercase tracking-widest shadow-xl shadow-slate-200/50">Accéder au POS</button>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up [animation-delay:400ms] px-4">
+                        <button onClick={onLoginClick} className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-indigo-600 text-white font-black rounded-[2rem] text-sm sm:text-base shadow-2xl shadow-indigo-500/40 hover:bg-indigo-700 hover:scale-105 transition-all uppercase tracking-widest">Essayez gratuitement</button>
+                        <button onClick={onLoginClick} className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-black rounded-[2rem] text-sm sm:text-base border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all uppercase tracking-widest shadow-xl shadow-slate-200/50">Accéder au POS</button>
                     </div>
                 </div>
             </section>
 
             {/* Features Section */}
-            <section id="product" className="py-32 px-6">
+            <section id="product" className="py-20 sm:py-32 px-4 sm:px-6">
                 <div className="max-w-7xl mx-auto">
-                    <div className="text-center mb-20">
-                        <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-4 uppercase">Puissance & Simplicité.</h2>
-                        <p className="text-slate-500 dark:text-slate-400 font-bold uppercase text-xs tracking-widest">Tout ce dont vous avez besoin pour dominer votre marché.</p>
+                    <div className="text-center mb-16 sm:mb-20">
+                        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter mb-4 uppercase px-4">Puissance & Simplicité.</h2>
+                        <p className="text-slate-600 dark:text-slate-300 font-bold uppercase text-sm sm:text-base tracking-wider px-4">Tout ce dont vous avez besoin pour dominer votre marché.</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
                         {[
                             { title: settings.landing_feature_1_title, desc: settings.landing_feature_1_desc, icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
                             { title: settings.landing_feature_2_title, desc: settings.landing_feature_2_desc, icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
                             { title: settings.landing_feature_3_title, desc: settings.landing_feature_3_desc, icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' }
                         ].map((f, i) => (
-                            <div key={i} className="p-10 rounded-[3rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-indigo-500 transition-all group shadow-xl shadow-slate-200/20">
-                                <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform shadow-inner">
+                            <div key={i} className="p-8 sm:p-10 rounded-3xl sm:rounded-[3rem] bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500 transition-all group shadow-xl">
+                                <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mb-6 sm:mb-8 group-hover:scale-110 transition-transform shadow-inner">
                                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d={f.icon} />
                                     </svg>
                                 </div>
-                                <h3 className="text-2xl font-black mb-4 uppercase tracking-tight">{f.title}</h3>
-                                <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{f.desc}</p>
+                                <h3 className="text-xl sm:text-2xl font-black mb-3 sm:mb-4 uppercase tracking-tight text-slate-900 dark:text-white">{f.title}</h3>
+                                <p className="text-slate-600 dark:text-slate-300 font-medium leading-relaxed text-sm sm:text-base">{f.desc}</p>
                             </div>
                         ))}
                     </div>
@@ -129,24 +129,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             </section>
 
             {/* Pricing Section */}
-            <section id="pricing" className="py-32 px-6 bg-slate-100 dark:bg-slate-900/50">
+            <section id="pricing" className="py-20 sm:py-32 px-4 sm:px-6 bg-slate-100 dark:bg-slate-900/50">
                 <div className="max-w-7xl mx-auto">
-                    <div className="text-center mb-20">
-                        <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-4 uppercase">Licences Sans Engagement.</h2>
-                        <p className="text-slate-500 dark:text-slate-400 font-bold uppercase text-xs tracking-widest">Une clé unique pour valider l'ensemble de vos points de vente.</p>
+                    <div className="text-center mb-16 sm:mb-20">
+                        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter mb-4 uppercase px-4">Licences Sans Engagement.</h2>
+                        <p className="text-slate-600 dark:text-slate-300 font-bold uppercase text-sm sm:text-base tracking-wider px-4">Une clé unique pour valider l'ensemble de vos points de vente.</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
                         {[
                             { id: 'STARTER', name: settings.license_plan_starter_name, price: settings.license_plan_starter_price, period: settings.license_plan_starter_period, features: settings.license_plan_starter_features },
                             { id: 'BUSINESS_PRO', name: settings.license_plan_business_name, price: settings.license_plan_business_price, period: settings.license_plan_business_period, features: settings.license_plan_business_features, popular: true },
                             { id: 'ENTERPRISE', name: settings.license_plan_enterprise_name, price: settings.license_plan_enterprise_price, period: settings.license_plan_enterprise_period, features: settings.license_plan_enterprise_features }
                         ].map((p, i) => (
-                            <div key={i} className={`relative p-12 rounded-[3.5rem] border-2 transition-all duration-500 ${p.popular ? 'bg-indigo-600 text-white border-indigo-500 scale-105 shadow-2xl' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 shadow-2xl'}`}>
-                                {p.popular && <span className="absolute -top-5 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-900 px-8 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl">Le plus populaire</span>}
-                                <h3 className={`text-xl font-black uppercase tracking-[0.2em] mb-8 ${p.popular ? 'text-indigo-100' : 'text-indigo-600'}`}>{p.name}</h3>
-                                <div className="mb-12">
-                                    <span className="text-6xl font-black tracking-tighter">{p.price}</span>
-                                    <span className={`text-sm font-bold ml-2 ${p.popular ? 'text-indigo-200' : 'text-slate-400'}`}> FCFA / {p.period}</span>
+                            <div key={i} className={`relative p-8 sm:p-12 rounded-3xl sm:rounded-[3.5rem] border-2 transition-all duration-500 ${p.popular ? 'bg-indigo-600 text-white border-indigo-500 md:scale-105 shadow-2xl' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-2xl'}`}>
+                                {p.popular && <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-900 px-6 sm:px-8 py-2 rounded-full text-xs sm:text-sm font-black uppercase tracking-wider shadow-xl">Le plus populaire</span>}
+                                <h3 className={`text-lg sm:text-xl font-black uppercase tracking-wider mb-6 sm:mb-8 ${p.popular ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400'}`}>{p.name}</h3>
+                                <div className="mb-10 sm:mb-12">
+                                    <span className="text-5xl sm:text-6xl font-black tracking-tighter">{p.price}</span>
+                                    <span className={`text-sm sm:text-base font-bold ml-2 ${p.popular ? 'text-indigo-200' : 'text-slate-500 dark:text-slate-400'}`}> FCFA / {p.period}</span>
                                 </div>
                                 <ul className="space-y-5 mb-14">
                                     {p.features.map((f, j) => (

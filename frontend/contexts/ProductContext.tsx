@@ -18,7 +18,7 @@ interface ProductContextType {
   transferStock: (productId: number, variantId: number, quantity: number, sourceStoreId: number, destStoreId: number, user: User, notes?: string) => boolean;
   deleteProduct: (productId: number) => void;
   resetProducts: (user: User) => void;
-  addCategory: (categoryName: string) => boolean;
+  addCategory: (categoryName: string) => Promise<boolean>;
   initializeStoreStock: (storeId: number) => void;
   loadProducts: () => Promise<void>;
 }
@@ -337,7 +337,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     saveToGlobal(allProducts.filter(p => p.id !== productId));
   }, [allProducts]);
   
-  const addCategory = useCallback((categoryName: string): boolean => {
+  const addCategory = useCallback(async (categoryName: string): Promise<boolean> => {
     if (!user) return false;
     const trimmedName = categoryName.trim();
     if (!trimmedName) return false;
@@ -347,10 +347,37 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
         return false;
     }
 
-    setCategories(prev => [...prev, trimmedName]);
-    
-    // TODO: Ajouter en base de données
-    return true;
+    try {
+      // Sauvegarder en base de données
+      const response = await fetch(`${API_URL}/api/categories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: trimmedName,
+          tenantId: user.tenantId
+        })
+      });
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          console.warn('Catégorie existe déjà');
+          return false;
+        }
+        throw new Error('Erreur lors de la création de la catégorie');
+      }
+
+      const newCategory = await response.json();
+      console.log('✅ Catégorie créée:', newCategory);
+
+      // Ajouter à l'état local
+      setCategories(prev => [...prev, trimmedName]);
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur création catégorie:', error);
+      return false;
+    }
   }, [categories, user]);
 
   const resetProducts = useCallback((user: User) => {

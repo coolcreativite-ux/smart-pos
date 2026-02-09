@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 import { useProducts } from '../hooks/useProducts';
 import { useStores } from '../contexts/StoreContext';
@@ -8,6 +8,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useSuppliers } from '../contexts/SupplierContext';
 import { PurchaseOrder, PurchaseOrderItem, StockChangeReason, getVariantName, Product, ProductVariant } from '../types';
 import Spinner from '../components/Spinner';
+import { API_URL } from '../config';
 
 const PurchaseOrderPage: React.FC = () => {
     const { t, language } = useLanguage();
@@ -17,11 +18,7 @@ const PurchaseOrderPage: React.FC = () => {
     const { addToast } = useToast();
     const { suppliers } = useSuppliers();
 
-    const [orders, setOrders] = useState<PurchaseOrder[]>(() => {
-        const saved = localStorage.getItem('purchaseOrders');
-        return saved ? JSON.parse(saved).map((o: any) => ({ ...o, createdAt: new Date(o.createdAt) })) : [];
-    });
-
+    const [orders, setOrders] = useState<PurchaseOrder[]>([]);
     const [isCreating, setIsCreating] = useState(false);
     const [selectedSupplierId, setSelectedSupplierId] = useState<number>(suppliers[0]?.id || 0);
     const [orderItems, setOrderItems] = useState<PurchaseOrderItem[]>([]);
@@ -32,6 +29,58 @@ const PurchaseOrderPage: React.FC = () => {
     const [showResults, setShowResults] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
 
+    // Charger les bons de commande depuis la DB
+    const loadOrders = useCallback(async () => {
+        try {
+            const response = await fetch(`${API_URL}/api/purchase-orders`);
+            
+            if (!response.ok) {
+                throw new Error('Erreur chargement bons de commande');
+            }
+
+            const data = await response.json();
+            
+            const dbOrders: PurchaseOrder[] = data.map((o: any) => ({
+                id: o.id,
+                tenantId: o.tenant_id,
+                supplierId: o.supplier_id,
+                storeId: o.store_id,
+                items: o.items?.map((item: any) => ({
+                    productId: item.product_id,
+                    variantId: item.variant_id,
+                    productName: '', // À remplir depuis products
+                    variantName: '', // À remplir depuis products
+                    quantity: item.quantity,
+                    costPrice: parseFloat(item.cost_price)
+                })) || [],
+                status: o.status,
+                createdAt: new Date(o.created_at),
+                receivedAt: o.received_at ? new Date(o.received_at) : undefined,
+                totalAmount: parseFloat(o.total_amount)
+            }));
+
+            // Filtrer par tenant
+            const filtered = user 
+                ? dbOrders.filter(o => o.tenantId === user.tenantId)
+                : dbOrders;
+
+            setOrders(filtered);
+            console.log('✅ Bons de commande chargés depuis la DB:', filtered.length);
+        } catch (error) {
+            console.warn('⚠️ Erreur chargement bons de commande, fallback localStorage:', error);
+            const saved = localStorage.getItem('purchaseOrders');
+            if (saved) {
+                setOrders(JSON.parse(saved).map((o: any) => ({ ...o, createdAt: new Date(o.createdAt) })));
+            }
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (user) {
+            loadOrders();
+        }
+    }, [loadOrders, user]);
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -41,11 +90,6 @@ const PurchaseOrderPage: React.FC = () => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
-
-    const saveOrders = (newOrders: PurchaseOrder[]) => {
-        setOrders(newOrders);
-        localStorage.setItem('purchaseOrders', JSON.stringify(newOrders));
-    };
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(amount);
@@ -73,34 +117,53 @@ const PurchaseOrderPage: React.FC = () => {
         setShowResults(false);
     };
 
-    const handleCreateOrder = () => {
-        if (orderItems.length === 0 || !currentStore || !selectedSupplierId) {
+    const handleCreateOrder = async () => {
+        if (orderItems.length === 0 || !currentStore || !selectedSupplierId || !user) {
             addToast("Sélectionnez un fournisseur et des articles", "error");
             return;
         }
 
-        const newOrder: PurchaseOrder = {
-            id: `PO-${Date.now()}`,
-            // Add missing tenantId
-            tenantId: user?.tenantId || 0,
-            supplierId: selectedSupplierId,
-            storeId: currentStore.id,
-            items: orderItems,
-            status: 'ordered',
-            createdAt: new Date(),
-            totalAmount: orderItems.reduce((acc, i) => acc + (i.quantity * i.costPrice), 0)
-        };
+        try {
+            const response = await fetch(`${API_URL}/api/purchase-orders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tenant_id: user.tenantId,
+                    supplier_id: selectedSupplierId,
+                    store_id: currentStore.id,
+                    reference: `PO-${Date.now()}`,
+                    total_amount: orderItems.reduce((acc, i) => acc + (i.quantity * i.costPrice), 0),
+                    items: orderItems.map(item => ({
+                        product_id: item.productId,
+                        variant_id: item.variantId,
+                        quantity: item.quantity,
+                        cost_price: item.costPrice
+                    }))
+                })
+            });
 
-        saveOrders([newOrder, ...orders]);
-        setIsCreating(false);
-        setOrderItems([]);
-        addToast("Bon de commande envoyé", "success");
+            if (!response.ok) {
+                throw new Error('Erreur création bon de commande');
+            }
+
+            const result = await response.json();
+            console.log('✅ Bon de commande créé:', result);
+            
+            // Recharger les commandes
+            await loadOrders();
+            
+            setIsCreating(false);
+            setOrderItems([]);
+            addToast("Bon de commande envoyé", "success");
+        } catch (error) {
+            console.error('❌ Erreur création bon de commande:', error);
+            addToast("Erreur lors de la création du bon de commande", "error");
+        }
     };
 
     const handleReceiveOrder = async (orderId: string) => {
         if (!user) return;
         setIsProcessing(true);
-        await new Promise(r => setTimeout(r, 1000));
 
         const order = orders.find(o => o.id === orderId);
         if (order) {
@@ -116,9 +179,24 @@ const PurchaseOrderPage: React.FC = () => {
                 );
             });
 
-            const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status: 'received' as const, receivedAt: new Date() } : o);
-            saveOrders(updatedOrders);
-            addToast("Stock mis à jour avec succès", "success");
+            try {
+                // Mettre à jour le statut en DB
+                await fetch(`${API_URL}/api/purchase-orders/${orderId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: 'received',
+                        received_at: new Date().toISOString()
+                    })
+                });
+
+                // Recharger les commandes
+                await loadOrders();
+                addToast("Stock mis à jour avec succès", "success");
+            } catch (error) {
+                console.error('❌ Erreur mise à jour bon de commande:', error);
+                addToast("Stock mis à jour mais erreur de sauvegarde", "warning");
+            }
         }
         setIsProcessing(false);
     };

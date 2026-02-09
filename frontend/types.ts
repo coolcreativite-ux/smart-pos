@@ -221,6 +221,7 @@ export interface PromoCode {
   type: 'percentage' | 'fixed';
   value: number;
   isActive: boolean;
+  expiresAt?: Date;
 }
 
 export interface Sale {

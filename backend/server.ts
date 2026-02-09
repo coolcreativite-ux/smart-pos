@@ -333,6 +333,39 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
+app.post('/api/categories', async (req, res) => {
+  try {
+    console.log('📁 Création catégorie:', req.body);
+    const { name, tenantId } = req.body;
+
+    if (!name || !tenantId) {
+      return res.status(400).json({ error: 'Nom et tenantId requis' });
+    }
+
+    // Vérifier si la catégorie existe déjà
+    const existingCategory = await pool.query(
+      'SELECT id FROM categories WHERE name = $1 AND tenant_id = $2',
+      [name, tenantId]
+    );
+
+    if (existingCategory.rows.length > 0) {
+      return res.status(409).json({ error: 'Catégorie existe déjà' });
+    }
+
+    // Créer la nouvelle catégorie
+    const result = await pool.query(
+      'INSERT INTO categories (tenant_id, name) VALUES ($1, $2) RETURNING *',
+      [tenantId, name]
+    );
+
+    console.log('✅ Catégorie créée:', result.rows[0]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Erreur création catégorie:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 app.post('/api/products', async (req, res) => {
   try {
     console.log('📦 Création produit:', req.body);
@@ -872,6 +905,242 @@ app.get('/api/stores', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error('❌ Erreur magasins:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ===== SUPPLIERS ENDPOINTS =====
+app.get('/api/suppliers', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM suppliers ORDER BY name ASC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('❌ Erreur fournisseurs:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/suppliers', async (req, res) => {
+  try {
+    console.log('🏭 Création fournisseur:', req.body);
+    const { tenant_id, name, contact_person, email, phone, address } = req.body;
+
+    if (!name || !tenant_id) {
+      return res.status(400).json({ error: 'Nom et tenant_id requis' });
+    }
+
+    const result = await pool.query(
+      'INSERT INTO suppliers (tenant_id, name, contact_person, email, phone, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [tenant_id, name, contact_person, email, phone, address]
+    );
+
+    console.log('✅ Fournisseur créé:', result.rows[0]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Erreur création fournisseur:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.put('/api/suppliers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, contact_person, email, phone, address } = req.body;
+
+    const result = await pool.query(
+      'UPDATE suppliers SET name = $1, contact_person = $2, email = $3, phone = $4, address = $5 WHERE id = $6 RETURNING *',
+      [name, contact_person, email, phone, address, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Fournisseur non trouvé' });
+    }
+
+    console.log('✅ Fournisseur mis à jour:', result.rows[0]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Erreur mise à jour fournisseur:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.delete('/api/suppliers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query('DELETE FROM suppliers WHERE id = $1 RETURNING *', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Fournisseur non trouvé' });
+    }
+
+    console.log('✅ Fournisseur supprimé:', id);
+    res.json({ message: 'Fournisseur supprimé' });
+  } catch (error) {
+    console.error('❌ Erreur suppression fournisseur:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ===== PROMO CODES ENDPOINTS =====
+app.get('/api/promo-codes', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM promo_codes ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('❌ Erreur codes promo:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/promo-codes', async (req, res) => {
+  try {
+    console.log('🎟️ Création code promo:', req.body);
+    const { tenant_id, code, type, value, expires_at } = req.body;
+
+    if (!code || !tenant_id || !type || value === undefined) {
+      return res.status(400).json({ error: 'Code, tenant_id, type et value requis' });
+    }
+
+    // Vérifier si le code existe déjà
+    const existing = await pool.query(
+      'SELECT id FROM promo_codes WHERE code = $1 AND tenant_id = $2',
+      [code, tenant_id]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'Code promo existe déjà' });
+    }
+
+    const result = await pool.query(
+      'INSERT INTO promo_codes (tenant_id, code, type, value, expires_at, is_active) VALUES ($1, $2, $3, $4, $5, true) RETURNING *',
+      [tenant_id, code, type, value, expires_at || null]
+    );
+
+    console.log('✅ Code promo créé:', result.rows[0]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Erreur création code promo:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.put('/api/promo-codes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { code, type, value, is_active, expires_at } = req.body;
+
+    const result = await pool.query(
+      'UPDATE promo_codes SET code = $1, type = $2, value = $3, is_active = $4, expires_at = $5 WHERE id = $6 RETURNING *',
+      [code, type, value, is_active, expires_at || null, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Code promo non trouvé' });
+    }
+
+    console.log('✅ Code promo mis à jour:', result.rows[0]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Erreur mise à jour code promo:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.delete('/api/promo-codes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query('DELETE FROM promo_codes WHERE id = $1 RETURNING *', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Code promo non trouvé' });
+    }
+
+    console.log('✅ Code promo supprimé:', id);
+    res.json({ message: 'Code promo supprimé' });
+  } catch (error) {
+    console.error('❌ Erreur suppression code promo:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ===== PURCHASE ORDERS ENDPOINTS =====
+app.get('/api/purchase-orders', async (req, res) => {
+  try {
+    const ordersResult = await pool.query('SELECT * FROM purchase_orders ORDER BY created_at DESC');
+    const itemsResult = await pool.query('SELECT * FROM purchase_order_items');
+
+    const orders = ordersResult.rows.map(order => ({
+      ...order,
+      items: itemsResult.rows.filter(item => item.purchase_order_id === order.id)
+    }));
+
+    res.json(orders);
+  } catch (error) {
+    console.error('❌ Erreur bons de commande:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/purchase-orders', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    console.log('📦 Création bon de commande:', req.body);
+    const { tenant_id, supplier_id, store_id, reference, total_amount, items } = req.body;
+
+    if (!tenant_id || !supplier_id || !store_id || !items || items.length === 0) {
+      return res.status(400).json({ error: 'Données manquantes' });
+    }
+
+    // Créer le bon de commande
+    const orderResult = await client.query(
+      'INSERT INTO purchase_orders (tenant_id, supplier_id, store_id, reference, status, total_amount) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [tenant_id, supplier_id, store_id, reference || null, 'ordered', total_amount]
+    );
+
+    const order = orderResult.rows[0];
+
+    // Créer les items
+    for (const item of items) {
+      await client.query(
+        'INSERT INTO purchase_order_items (purchase_order_id, product_id, variant_id, quantity, cost_price, total_price) VALUES ($1, $2, $3, $4, $5, $6)',
+        [order.id, item.product_id, item.variant_id, item.quantity, item.cost_price, item.quantity * item.cost_price]
+      );
+    }
+
+    await client.query('COMMIT');
+    console.log('✅ Bon de commande créé:', order.id);
+    res.status(201).json(order);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('❌ Erreur création bon de commande:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  } finally {
+    client.release();
+  }
+});
+
+app.put('/api/purchase-orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, received_at } = req.body;
+
+    const result = await pool.query(
+      'UPDATE purchase_orders SET status = $1, received_at = $2 WHERE id = $3 RETURNING *',
+      [status, received_at || null, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Bon de commande non trouvé' });
+    }
+
+    console.log('✅ Bon de commande mis à jour:', result.rows[0]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Erreur mise à jour bon de commande:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

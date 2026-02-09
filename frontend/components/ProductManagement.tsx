@@ -126,8 +126,8 @@ const ProductManagement: React.FC = () => {
     setProductToEdit(null);
   };
   
-  const handleSaveCategory = (categoryName: string) => {
-    const success = addCategory(categoryName);
+  const handleSaveCategory = async (categoryName: string) => {
+    const success = await addCategory(categoryName);
     if (success) {
         addToast(t('categoryAddedSuccess'), 'success');
         setIsCategoryModalOpen(false);

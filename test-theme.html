@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Test Mode Jour/Nuit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
+  <script>
+    // Appliquer le thème immédiatement
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+      
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    })();
+  </script>
+</head>
+<body class="bg-white dark:bg-slate-900 text-slate-900 dark:text-white min-h-screen p-8">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-4xl font-bold mb-8">Test Mode Jour/Nuit</h1>
+    
+    <div class="bg-slate-100 dark:bg-slate-800 p-6 rounded-lg shadow-lg mb-6">
+      <h2 class="text-2xl font-semibold mb-4">Contrôles</h2>
+      <div class="flex gap-4">
+        <button 
+          onclick="setTheme('light')"
+          class="px-6 py-3 bg-yellow-400 text-slate-900 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+        >
+          ☀️ Mode Jour
+        </button>
+        <button 
+          onclick="setTheme('dark')"
+          class="px-6 py-3 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors"
+        >
+          🌙 Mode Nuit
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-slate-100 dark:bg-slate-800 p-6 rounded-lg shadow-lg">
+      <h2 class="text-2xl font-semibold mb-4">État actuel</h2>
+      <p class="mb-2">Thème actif: <span id="current-theme" class="font-bold text-indigo-600 dark:text-indigo-400"></span></p>
+      <p class="mb-2">Classe 'dark' sur HTML: <span id="has-dark-class" class="font-bold"></span></p>
+      <p>LocalStorage 'theme': <span id="storage-theme" class="font-bold"></span></p>
+    </div>
+  </div>
+
+  <script>
+    function setTheme(theme) {
+      localStorage.setItem('theme', theme);
+      const root = document.documentElement;
+      
+      if (theme === 'dark') {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+      
+      updateStatus();
+    }
+
+    function updateStatus() {
+      const root = document.documentElement;
+      const hasDark = root.classList.contains('dark');
+      const storedTheme = localStorage.getItem('theme');
+      
+      document.getElementById('current-theme').textContent = hasDark ? 'Nuit 🌙' : 'Jour ☀️';
+      document.getElementById('has-dark-class').textContent = hasDark ? 'Oui ✅' : 'Non ❌';
+      document.getElementById('storage-theme').textContent = storedTheme || 'Non défini';
+    }
+
+    // Mettre à jour l'état au chargement
+    updateStatus();
+    
+    // Observer les changements de classe
+    const observer = new MutationObserver(updateStatus);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  </script>
+</body>
+</html>

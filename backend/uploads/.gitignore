@@ -1,0 +1,6 @@
+# Ignorer tous les fichiers uploadés
+*
+# Mais garder les dossiers
+!.gitignore
+!logos/
+!logos/.gitkeep

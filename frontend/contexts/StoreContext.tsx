@@ -4,7 +4,6 @@ import { Store, UserRole } from '../types';
 import { MOCK_STORES } from '../constants';
 import { useActionLog } from './ActionLogContext';
 import { useAuth } from './AuthContext';
-import { db } from '../lib/database';
 import { API_URL } from '../config';
 
 interface StoreContextType {
@@ -24,23 +23,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [allStores, setAllStores] = useState<Store[]>([]);
   const { logAction } = useActionLog();
 
-  // Charger les magasins depuis la base de données
+  // Charger les magasins depuis la base de données via l'API backend
   const loadStores = useCallback(async () => {
     try {
-      const { data, error } = await db.from('stores');
+      // Utiliser l'API backend au lieu de Supabase directement
+      const response = await fetch(`${API_URL}/api/stores`);
       
-      if (error) {
-        console.warn('Erreur lors du chargement des magasins depuis la DB:', error);
-        // Fallback vers localStorage uniquement si la DB échoue
-        const saved = localStorage.getItem('globalStores');
-        if (saved) {
-          setAllStores(JSON.parse(saved));
-        } else {
-          setAllStores(MOCK_STORES);
-          localStorage.setItem('globalStores', JSON.stringify(MOCK_STORES));
-        }
-        return;
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+
+      const data = await response.json();
 
       if (data && data.length > 0) {
         // Convertir les données de la DB au format attendu
@@ -55,7 +48,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setAllStores(dbStores);
         // Mettre à jour le localStorage avec les données de la DB (source de vérité)
         localStorage.setItem('globalStores', JSON.stringify(dbStores));
-        console.log('✅ Magasins chargés depuis la base de données:', dbStores.length);
+        console.log('✅ Magasins chargés depuis l\'API:', dbStores.length);
       } else {
         // Si la DB est vide, utiliser les données mock
         console.log('⚠️ Aucun magasin en DB, utilisation des données mock');
@@ -63,12 +56,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         localStorage.setItem('globalStores', JSON.stringify(MOCK_STORES));
       }
     } catch (error) {
-      console.warn('Erreur lors du chargement des magasins:', error);
+      console.warn('Erreur lors du chargement des magasins depuis l\'API:', error);
       // Fallback vers localStorage
       const saved = localStorage.getItem('globalStores');
       if (saved) {
+        console.log('📦 Chargement depuis localStorage');
         setAllStores(JSON.parse(saved));
       } else {
+        console.log('📦 Utilisation des données mock');
         setAllStores(MOCK_STORES);
         localStorage.setItem('globalStores', JSON.stringify(MOCK_STORES));
       }

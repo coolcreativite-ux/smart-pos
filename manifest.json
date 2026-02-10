@@ -3,8 +3,9 @@
   "short_name": "SmartPOS",
   "name": "SmartPOS - Point de Vente Intelligent",
   "icons": [],
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
   "theme_color": "#4f46e5",
-  "background_color": "#1e293b"
+  "background_color": "#1e293b",
+  "scope": "/"
 }

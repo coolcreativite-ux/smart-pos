@@ -15,8 +15,9 @@ export const SAAS_BRANDING = {
 // Fonction pour récupérer les paramètres SaaS depuis l'API
 export const getSaasBranding = async () => {
   try {
-    const apiUrl = `${window.location.protocol}//${window.location.hostname}:5000`;
-    const response = await fetch(`${apiUrl}/api/app-settings`);
+    // Importer dynamiquement l'API_URL depuis config.ts
+    const { API_URL } = await import('./config');
+    const response = await fetch(`${API_URL}/api/app-settings`);
     if (response.ok) {
       const settings = await response.json();
       
@@ -24,13 +25,13 @@ export const getSaasBranding = async () => {
       const logoUrl = settings.saas_logo_url 
         ? (settings.saas_logo_url.startsWith('http') 
             ? settings.saas_logo_url 
-            : `${apiUrl}${settings.saas_logo_url}`)
+            : `${API_URL}${settings.saas_logo_url}`)
         : SAAS_BRANDING.logoUrl;
         
       const faviconUrl = settings.saas_favicon_url 
         ? (settings.saas_favicon_url.startsWith('http') 
             ? settings.saas_favicon_url 
-            : `${apiUrl}${settings.saas_favicon_url}`)
+            : `${API_URL}${settings.saas_favicon_url}`)
         : SAAS_BRANDING.faviconUrl;
       
       return {

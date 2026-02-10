@@ -113,7 +113,7 @@ const SettingsPage: React.FC = () => {
     if (imageToCrop && croppedAreaPixels) {
       const croppedImg = await getCroppedImg(imageToCrop, croppedAreaPixels);
       if (croppedImg) {
-        setLocalSettings(prev => ({ ...prev, logoUrl: croppedImg }));
+        setLocalSettings(prev => ({ ...prev, storeLogoUrl: croppedImg }));
       }
       setImageToCrop(null);
     }
@@ -300,10 +300,11 @@ const SettingsPage: React.FC = () => {
           </div>
 
           <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-6 bg-slate-50/50 dark:bg-slate-900/20">
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-4">Logo de la boutique (Ticket)</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Logo du magasin</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 text-center">Apparaît uniquement sur les tickets de caisse</p>
             <div className="w-32 h-32 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white flex items-center justify-center mb-4 shadow-inner relative group">
-                {localSettings.logoUrl ? (
-                    <img src={localSettings.logoUrl} alt="Store Logo" className="w-full h-full object-contain" />
+                {localSettings.storeLogoUrl ? (
+                    <img src={localSettings.storeLogoUrl} alt="Logo du magasin" className="w-full h-full object-contain" />
                 ) : (
                     <svg className="w-12 h-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -317,12 +318,12 @@ const SettingsPage: React.FC = () => {
                     onClick={() => logoInputRef.current?.click()} 
                     className="text-xs font-bold uppercase tracking-wider px-4 py-2 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 transition-colors"
                 >
-                    {localSettings.logoUrl ? 'Changer le logo' : 'Importer un logo'}
+                    {localSettings.storeLogoUrl ? 'Changer le logo' : 'Importer un logo'}
                 </button>
-                {localSettings.logoUrl && (
+                {localSettings.storeLogoUrl && (
                     <button 
                         type="button" 
-                        onClick={() => setLocalSettings(p => ({...p, logoUrl: undefined}))} 
+                        onClick={() => setLocalSettings(p => ({...p, storeLogoUrl: undefined}))} 
                         className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>

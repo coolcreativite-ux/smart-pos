@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLicenses } from '../contexts/LicenseContext';
 import { useUsers } from '../contexts/UserContext';
 import { useLanguage } from '../hooks/useLanguage';
@@ -12,12 +12,16 @@ import { generateLicenseEmail } from '../services/geminiService';
 import { sendRealEmail } from '../services/emailService';
 import ReactMarkdown from 'react-markdown';
 import { API_URL } from '../config';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from '../utils/cropImage';
+import { useSaasBranding } from '../contexts/SaasBrandingContext';
 
 const SuperAdminPage: React.FC = () => {
     const { licenses, generateLicense, revokeLicense } = useLicenses();
     const { users, addUser, updateUser, deleteUser } = useUsers();
     const { t, language } = useLanguage();
     const { addToast } = useToast();
+    const { refreshBranding } = useSaasBranding();
     
     const [activeTab, setActiveTab] = useState<'licenses' | 'owners' | 'roles' | 'customization'>('licenses');
     const [selectedOwnerId, setSelectedOwnerId] = useState('');
@@ -43,6 +47,21 @@ const SuperAdminPage: React.FC = () => {
     const [appSettings, setAppSettings] = useState<Record<string, any>>({});
     const [isLoadingSettings, setIsLoadingSettings] = useState(true);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+    // États pour l'upload de logo SaaS
+    const logoInputRef = useRef<HTMLInputElement>(null);
+    const faviconInputRef = useRef<HTMLInputElement>(null);
+    const [logoToCrop, setLogoToCrop] = useState<string | null>(null);
+    const [faviconToCrop, setFaviconToCrop] = useState<string | null>(null);
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1);
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+    const [currentLogoType, setCurrentLogoType] = useState<'logo' | 'favicon' | null>(null);
+    
+    // États pour les URLs
+    const [logoUrl, setLogoUrl] = useState('');
+    const [faviconUrl, setFaviconUrl] = useState('');
 
     const owners = useMemo(() => users.filter(u => u.role === UserRole.Owner), [users]);
 
@@ -93,6 +112,120 @@ const SuperAdminPage: React.FC = () => {
             addToast('Erreur lors de la sauvegarde', 'error');
         } finally {
             setIsSavingSettings(false);
+        }
+    };
+
+    // Fonctions pour l'upload de logo SaaS
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon') => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (type === 'logo') {
+                    setLogoToCrop(reader.result as string);
+                } else {
+                    setFaviconToCrop(reader.result as string);
+                }
+                setCurrentLogoType(type);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const onCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
+        setCroppedAreaPixels(croppedAreaPixels);
+    };
+
+    const handleSaveLogo = async () => {
+        if (!croppedAreaPixels || !currentLogoType) return;
+        
+        try {
+            setIsUploadingLogo(true);
+            const imageToCrop = currentLogoType === 'logo' ? logoToCrop : faviconToCrop;
+            
+            if (!imageToCrop) return;
+
+            // Créer l'image croppée en base64
+            const croppedImgBase64 = await getCroppedImg(imageToCrop, croppedAreaPixels);
+            if (!croppedImgBase64) return;
+
+            // Convertir base64 en Blob
+            const response = await fetch(croppedImgBase64);
+            const blob = await response.blob();
+            
+            // Créer un FormData pour l'upload
+            const formData = new FormData();
+            formData.append('file', blob, `${currentLogoType}.png`);
+            formData.append('type', currentLogoType);
+
+            // Uploader le fichier
+            const uploadResponse = await fetch(`${API_URL}/api/app-settings/upload-logo-file`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('Erreur lors de l\'upload');
+            }
+
+            const result = await uploadResponse.json();
+            console.log('✅ Logo uploadé:', result.url);
+
+            addToast(`${currentLogoType === 'logo' ? 'Logo' : 'Favicon'} mis à jour avec succès !`, 'success');
+            await loadSettings();
+            
+            // Vider le cache et rafraîchir le branding
+            localStorage.removeItem('saas_branding_cache');
+            await refreshBranding();
+            
+            // Nettoyer les états
+            setLogoToCrop(null);
+            setFaviconToCrop(null);
+            setCurrentLogoType(null);
+            
+        } catch (error) {
+            console.error('Erreur upload logo:', error);
+            addToast('Erreur lors de l\'upload', 'error');
+        } finally {
+            setIsUploadingLogo(false);
+        }
+    };
+
+    // Fonction pour sauvegarder une URL directement
+    const handleSaveLogoUrl = async (type: 'logo' | 'favicon') => {
+        const url = type === 'logo' ? logoUrl : faviconUrl;
+        
+        if (!url.trim()) {
+            addToast('Veuillez saisir une URL', 'error');
+            return;
+        }
+
+        try {
+            setIsUploadingLogo(true);
+            const settingKey = type === 'logo' ? 'saas_logo_url' : 'saas_favicon_url';
+            
+            await fetch(`${API_URL}/api/app-settings/${settingKey}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value: url })
+            });
+
+            addToast(`${type === 'logo' ? 'Logo' : 'Favicon'} URL sauvegardée !`, 'success');
+            await loadSettings();
+            
+            // Vider le cache et rafraîchir le branding
+            localStorage.removeItem('saas_branding_cache');
+            await refreshBranding();
+            
+            // Réinitialiser le champ
+            if (type === 'logo') setLogoUrl('');
+            else setFaviconUrl('');
+            
+        } catch (error) {
+            console.error('Erreur sauvegarde URL:', error);
+            addToast('Erreur lors de la sauvegarde', 'error');
+        } finally {
+            setIsUploadingLogo(false);
         }
     };
 
@@ -567,6 +700,153 @@ const SuperAdminPage: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Section Logo SaaS */}
+                            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700">
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6 uppercase tracking-tight">🖼️ Logo & Favicon SaaS</h3>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    
+                                    {/* Logo Principal */}
+                                    <div className="space-y-4">
+                                        <h4 className="text-lg font-bold text-slate-800 dark:text-slate-200">Logo Principal</h4>
+                                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-6 bg-slate-50/50 dark:bg-slate-900/20">
+                                            <div className="w-48 h-16 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white flex items-center justify-center mb-4 shadow-inner">
+                                                {appSettings.saas_logo_url ? (
+                                                    <img src={appSettings.saas_logo_url} alt="Logo SaaS" className="w-full h-full object-contain p-2" />
+                                                ) : (
+                                                    <div className="text-slate-400 text-sm">Aucun logo</div>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Option 1: Upload fichier */}
+                                            <input ref={logoInputRef} type="file" accept="image/*" onChange={(e) => handleLogoUpload(e, 'logo')} className="hidden" />
+                                            <button 
+                                                type="button" 
+                                                onClick={() => logoInputRef.current?.click()} 
+                                                className="w-full text-xs font-bold uppercase tracking-wider px-4 py-2 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 transition-colors mb-3"
+                                            >
+                                                📁 {appSettings.saas_logo_url ? 'Changer le logo' : 'Importer un fichier'}
+                                            </button>
+                                            
+                                            {/* Option 2: URL */}
+                                            <div className="w-full">
+                                                <div className="text-xs text-slate-500 text-center mb-2">ou saisir une URL</div>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="url"
+                                                        value={logoUrl}
+                                                        onChange={(e) => setLogoUrl(e.target.value)}
+                                                        placeholder="https://example.com/logo.png"
+                                                        className="flex-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSaveLogoUrl('logo')}
+                                                        disabled={isUploadingLogo || !logoUrl.trim()}
+                                                        className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        💾
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <p className="text-xs text-slate-500 mt-3 text-center">Utilisé dans l'en-tête et la page de connexion</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Favicon */}
+                                    <div className="space-y-4">
+                                        <h4 className="text-lg font-bold text-slate-800 dark:text-slate-200">Favicon</h4>
+                                        <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-6 bg-slate-50/50 dark:bg-slate-900/20">
+                                            <div className="w-16 h-16 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white flex items-center justify-center mb-4 shadow-inner">
+                                                {appSettings.saas_favicon_url ? (
+                                                    <img src={appSettings.saas_favicon_url} alt="Favicon SaaS" className="w-full h-full object-contain p-1" />
+                                                ) : (
+                                                    <div className="text-slate-400 text-xs">32x32</div>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Option 1: Upload fichier */}
+                                            <input ref={faviconInputRef} type="file" accept="image/*" onChange={(e) => handleLogoUpload(e, 'favicon')} className="hidden" />
+                                            <button 
+                                                type="button" 
+                                                onClick={() => faviconInputRef.current?.click()} 
+                                                className="w-full text-xs font-bold uppercase tracking-wider px-4 py-2 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 transition-colors mb-3"
+                                            >
+                                                📁 {appSettings.saas_favicon_url ? 'Changer favicon' : 'Importer un fichier'}
+                                            </button>
+                                            
+                                            {/* Option 2: URL */}
+                                            <div className="w-full">
+                                                <div className="text-xs text-slate-500 text-center mb-2">ou saisir une URL</div>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="url"
+                                                        value={faviconUrl}
+                                                        onChange={(e) => setFaviconUrl(e.target.value)}
+                                                        placeholder="https://example.com/favicon.png"
+                                                        className="flex-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSaveLogoUrl('favicon')}
+                                                        disabled={isUploadingLogo || !faviconUrl.trim()}
+                                                        className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        💾
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <p className="text-xs text-slate-500 mt-3 text-center">Icône du navigateur et PWA</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Modal de Crop */}
+                            {(logoToCrop || faviconToCrop) && (
+                                <div className="fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center z-[70] p-4">
+                                    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-2xl">
+                                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
+                                            Ajuster le {currentLogoType === 'logo' ? 'Logo' : 'Favicon'}
+                                        </h3>
+                                        <div className="relative w-full h-96 mb-6">
+                                            <Cropper
+                                                image={logoToCrop || faviconToCrop || ''}
+                                                crop={crop}
+                                                zoom={zoom}
+                                                aspect={currentLogoType === 'logo' ? 3.33 : 1}
+                                                onCropChange={setCrop}
+                                                onZoomChange={setZoom}
+                                                onCropComplete={onCropComplete}
+                                            />
+                                        </div>
+                                        <div className="flex gap-4 justify-center">
+                                            <button 
+                                                type="button" 
+                                                onClick={() => {
+                                                    setLogoToCrop(null);
+                                                    setFaviconToCrop(null);
+                                                    setCurrentLogoType(null);
+                                                }} 
+                                                className="px-6 py-2 bg-slate-200 dark:bg-slate-600 font-semibold rounded-lg"
+                                            >
+                                                Annuler
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                onClick={handleSaveLogo} 
+                                                disabled={isUploadingLogo}
+                                                className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                                            >
+                                                {isUploadingLogo && <Spinner size="sm" />}
+                                                Valider le {currentLogoType === 'logo' ? 'Logo' : 'Favicon'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Section Landing Page */}
                             <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700">

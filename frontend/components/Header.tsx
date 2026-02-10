@@ -8,6 +8,7 @@ import { UserRole } from '../types';
 import { useTheme } from '../hooks/useTheme';
 import { useStores } from '../contexts/StoreContext';
 import { usePWA } from '../hooks/usePWA';
+import { useSaasBranding } from '../contexts/SaasBrandingContext';
 
 interface HeaderProps {
     onMobileMenuToggle: () => void;
@@ -22,6 +23,7 @@ const Header: React.FC<HeaderProps> = ({ onMobileMenuToggle, onSettingsClick }) 
   const { settings } = useSettings();
   const { stores, currentStore, setCurrentStore } = useStores();
   const { isInstallable, installApp } = usePWA();
+  const { branding } = useSaasBranding();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
@@ -56,28 +58,26 @@ const Header: React.FC<HeaderProps> = ({ onMobileMenuToggle, onSettingsClick }) 
     <header className="flex-shrink-0 bg-white dark:bg-slate-800 shadow-md z-30 sticky top-0">
       <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center space-x-2 overflow-hidden">
-            {settings.logoUrl ? (
-                <div className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-lg overflow-hidden bg-white flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700">
-                    <img src={settings.logoUrl} alt="Store Logo" className="w-full h-full object-contain p-0.5" />
-                </div>
+            {/* Logo SaaS dynamique */}
+            {branding.logoUrl ? (
+                <img 
+                    src={branding.logoUrl} 
+                    alt={branding.alt} 
+                    className="h-8 sm:h-10 w-auto object-contain flex-shrink-0" 
+                />
             ) : (
-                <svg className="w-7 h-7 sm:w-8 sm:h-8 text-indigo-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L2 7V17L12 22L22 17V7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M2 7L12 12L22 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M12 22V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-            )}
-            <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-1 sm:gap-2">
-                    <span className="text-sm sm:text-lg font-black text-slate-900 dark:text-white tracking-tighter leading-none truncate">{settings.storeName}</span>
-                    {!isOnline && (
-                        <span className="inline-block px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-[8px] font-black uppercase tracking-wide">
-                            Offline
-                        </span>
-                    )}
+                <div className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2L2 7V17L12 22L22 17V7L12 2Z" />
+                    </svg>
                 </div>
-                {currentStore && <span className="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 font-bold uppercase truncate">{currentStore.name}</span>}
-            </div>
+            )}
+            {/* Indicateur offline si nécessaire */}
+            {!isOnline && (
+                <span className="inline-block px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase tracking-wide">
+                    Offline
+                </span>
+            )}
         </div>
         
         <div className="flex items-center space-x-2">

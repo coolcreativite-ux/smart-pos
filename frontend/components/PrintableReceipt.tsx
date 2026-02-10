@@ -113,11 +113,11 @@ const PrintableReceipt: React.FC<PrintableReceiptProps> = ({
       
       {/* Header: Logo, Nom, Adresse */}
       <div className="receipt-header">
-        {settings.logoUrl && (
+        {settings.storeLogoUrl && (
           <div className="flex justify-center mb-3">
             <img 
-              src={settings.logoUrl} 
-              alt="Logo" 
+              src={settings.storeLogoUrl} 
+              alt="Logo du magasin" 
               className="w-20 h-20 object-contain grayscale contrast-150" 
               style={{ filter: 'brightness(0) contrast(2)' }} 
             />

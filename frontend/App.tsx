@@ -10,6 +10,7 @@ import { SettingsProvider } from './contexts/SettingsContext';
 import { UserProvider } from './contexts/UserContext';
 import { LicenseProvider } from './contexts/LicenseContext';
 import { AppSettingsProvider } from './contexts/AppSettingsContext';
+import { SaasBrandingProvider } from './contexts/SaasBrandingContext';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import LandingPage from './pages/LandingPage';
@@ -21,10 +22,14 @@ import { StoreProvider } from './contexts/StoreContext';
 import { CashDrawerProvider } from './contexts/CashDrawerContext';
 import { SupplierProvider } from './contexts/SupplierContext';
 import { UpdateNotification } from './components/UpdateNotification';
+import { useDynamicFavicon } from './hooks/useDynamicFavicon';
 
 const AppContent: React.FC = () => {
     const { user } = useAuth();
     const [showLogin, setShowLogin] = useState(false);
+    
+    // Mettre à jour le favicon dynamiquement
+    useDynamicFavicon();
 
     if (user) {
         return <DashboardPage />;
@@ -45,32 +50,34 @@ const App: React.FC = () => {
           <LicenseProvider>
             <UserProvider>
               <AuthProvider>
-                <StoreProvider>
-                  <SupplierProvider>
-                    <SettingsProvider>
-                      <ProductProvider>
-                        <CustomerProvider>
-                          <SalesHistoryProvider>
-                            <PromoCodeProvider>
-                              <CashDrawerProvider>
-                                <CartProvider>
-                                  <ThemeProvider>
-                                    <ToastProvider>
-                                      <div className="min-h-screen font-sans">
-                                        <AppContent />
-                                        <UpdateNotification />
-                                      </div>
-                                    </ToastProvider>
-                                  </ThemeProvider>
-                                </CartProvider>
-                              </CashDrawerProvider>
-                            </PromoCodeProvider>
-                          </SalesHistoryProvider>
-                        </CustomerProvider>
-                      </ProductProvider>
-                    </SettingsProvider>
-                  </SupplierProvider>
-                </StoreProvider>
+                <SaasBrandingProvider>
+                  <StoreProvider>
+                    <SupplierProvider>
+                      <SettingsProvider>
+                        <ProductProvider>
+                          <CustomerProvider>
+                            <SalesHistoryProvider>
+                              <PromoCodeProvider>
+                                <CashDrawerProvider>
+                                  <CartProvider>
+                                    <ThemeProvider>
+                                      <ToastProvider>
+                                        <div className="min-h-screen font-sans">
+                                          <AppContent />
+                                          <UpdateNotification />
+                                        </div>
+                                      </ToastProvider>
+                                    </ThemeProvider>
+                                  </CartProvider>
+                                </CashDrawerProvider>
+                              </PromoCodeProvider>
+                            </SalesHistoryProvider>
+                          </CustomerProvider>
+                        </ProductProvider>
+                      </SettingsProvider>
+                    </SupplierProvider>
+                  </StoreProvider>
+                </SaasBrandingProvider>
               </AuthProvider>
             </UserProvider>
           </LicenseProvider>

@@ -3,14 +3,11 @@
 
 const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env.development' });
 
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'gemini_pos_dev',
-  password: process.env.DB_PASSWORD,
-  port: parseInt(process.env.DB_PORT || '5432'),
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 async function resetSuperAdminPassword() {

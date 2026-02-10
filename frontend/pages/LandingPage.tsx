@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 import { useAppSettings } from '../contexts/AppSettingsContext';
+import { useSaasBranding } from '../contexts/SaasBrandingContext';
 import OrderContactModal from '../components/OrderContactModal';
 
 interface LandingPageProps {
@@ -11,6 +12,7 @@ interface LandingPageProps {
 const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
     const { t } = useLanguage();
     const { settings, isLoading } = useAppSettings();
+    const { branding } = useSaasBranding();
     const [isScrolled, setIsScrolled] = useState(false);
     
     // États pour le système de commande/contact
@@ -60,12 +62,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             <nav className={`fixed top-6 left-1/2 -translate-x-1/2 z-[100] w-[95%] max-w-6xl transition-all duration-500 ${isScrolled ? 'top-4' : 'top-8'}`}>
                 <div className={`flex items-center justify-between px-4 sm:px-6 py-3 rounded-2xl border transition-all duration-500 ${isScrolled ? 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-slate-200 dark:border-slate-700 shadow-2xl' : 'bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-slate-200/50 dark:border-slate-700/50 shadow-lg'}`}>
                     <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-                        <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform">
-                            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2L2 7V17L12 22L22 17V7L12 2Z" />
-                            </svg>
+                        <div className="h-10 flex items-center justify-center">
+                            {branding.logoUrl ? (
+                              <img 
+                                  src={branding.logoUrl} 
+                                  alt={branding.alt} 
+                                  className="h-full w-auto object-contain group-hover:scale-105 transition-transform" 
+                              />
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2L2 7V17L12 22L22 17V7L12 2Z" />
+                                  </svg>
+                                </div>
+                                <span className="text-lg font-black tracking-tighter uppercase">SMART<span className="text-indigo-600">POS</span></span>
+                              </div>
+                            )}
                         </div>
-                        <span className="text-lg sm:text-xl font-black tracking-tighter uppercase">SMART<span className="text-indigo-600">POS</span></span>
                     </div>
 
                     <div className="hidden md:flex items-center gap-8">
@@ -238,12 +252,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-20 text-center md:text-left">
                         <div className="md:col-span-2">
                              <div className="flex items-center justify-center md:justify-start gap-2 mb-6 text-slate-900 dark:text-white">
-                                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
-                                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2L2 7V17L12 22L22 17V7L12 2Z" />
-                                    </svg>
+                                <div className="h-12 flex items-center justify-center">
+                                    {branding.logoUrl ? (
+                                        <img 
+                                            src={branding.logoUrl} 
+                                            alt={branding.alt} 
+                                            className="h-full w-auto object-contain" 
+                                        />
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                                                <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2L2 7V17L12 22L22 17V7L12 2Z" />
+                                                </svg>
+                                            </div>
+                                            <span className="text-xl font-black tracking-tighter uppercase">SMART<span className="text-indigo-600">POS</span></span>
+                                        </div>
+                                    )}
                                 </div>
-                                <span className="text-xl font-black tracking-tighter uppercase">SMART<span className="text-indigo-600">POS</span></span>
                             </div>
                             <p className="max-w-sm mx-auto md:mx-0 text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                                 Le système de point de vente intelligent de nouvelle génération. Développé pour la résilience et la performance des commerçants modernes.

@@ -3,6 +3,9 @@ import cors from 'cors';
 import { Pool } from 'pg';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 // Charger les variables d'environnement selon l'environnement
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
@@ -17,7 +20,42 @@ const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Augmenter la limite pour les images
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Servir les fichiers statiques (logos uploadés)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Configuration de multer pour l'upload de fichiers
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'uploads', 'logos');
+    // Créer le dossier s'il n'existe pas
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Générer un nom unique avec timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `${req.body.type || 'logo'}-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    // Accepter uniquement les images
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Seules les images sont autorisées'));
+    }
+  }
+});
 
 // Configuration PostgreSQL - Utiliser DATABASE_URL de Coolify/Supabase
 const pool = new Pool({
@@ -1229,20 +1267,21 @@ app.put('/api/app-settings/:key', async (req, res) => {
     const { key } = req.params;
     const { value } = req.body;
     
+    console.log(`🔧 Mise à jour paramètre: ${key} =`, typeof value === 'string' ? value.substring(0, 50) + '...' : value);
+    
     // Convertir en string si c'est un objet/array
     const valueStr = typeof value === 'object' ? JSON.stringify(value) : value;
     
+    // Utiliser UPSERT (INSERT ... ON CONFLICT DO UPDATE)
     const result = await pool.query(
-      `UPDATE app_settings 
-       SET value = $1, updated_at = NOW() 
-       WHERE key = $2 
+      `INSERT INTO app_settings (key, value, category, description) 
+       VALUES ($1, $2, $3, $4) 
+       ON CONFLICT (key) DO UPDATE SET 
+         value = $2, 
+         updated_at = NOW()
        RETURNING *`,
-      [valueStr, key]
+      [key, valueStr, 'branding', `Paramètre ${key}`]
     );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Setting not found' });
-    }
     
     res.json(result.rows[0]);
   } catch (error: any) {
@@ -1269,6 +1308,100 @@ app.post('/api/app-settings', async (req, res) => {
   } catch (error: any) {
     console.error('Error creating setting:', error);
     res.status(500).json({ error: 'Failed to create setting' });
+  }
+});
+
+// POST - Upload de fichier logo/favicon SaaS (SuperAdmin uniquement)
+app.post('/api/app-settings/upload-logo-file', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier uploadé' });
+    }
+
+    const { type } = req.body; // 'logo' ou 'favicon'
+    
+    // Construire l'URL du fichier
+    const fileUrl = `/uploads/logos/${req.file.filename}`;
+    const settingKey = type === 'logo' ? 'saas_logo_url' : 'saas_favicon_url';
+    
+    console.log(`🖼️ Upload fichier ${type}: ${fileUrl}`);
+    
+    // Supprimer l'ancien fichier s'il existe
+    try {
+      const oldFile = await pool.query(
+        'SELECT value FROM app_settings WHERE key = $1',
+        [settingKey]
+      );
+      
+      if (oldFile.rows.length > 0 && oldFile.rows[0].value.startsWith('/uploads/')) {
+        const oldPath = path.join(__dirname, oldFile.rows[0].value);
+        if (fs.existsSync(oldPath)) {
+          fs.unlinkSync(oldPath);
+          console.log(`🗑️ Ancien fichier supprimé: ${oldPath}`);
+        }
+      }
+    } catch (err) {
+      console.warn('Impossible de supprimer l\'ancien fichier:', err);
+    }
+    
+    // Sauvegarder l'URL dans la base de données
+    await pool.query(
+      `INSERT INTO app_settings (key, value, category, description) 
+       VALUES ($1, $2, $3, $4) 
+       ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+      [settingKey, fileUrl, 'branding', `${type === 'logo' ? 'Logo' : 'Favicon'} SaaS`]
+    );
+    
+    res.json({ 
+      success: true, 
+      url: fileUrl,
+      message: `${type === 'logo' ? 'Logo' : 'Favicon'} uploadé avec succès`
+    });
+    
+  } catch (error: any) {
+    console.error('Error uploading logo file:', error);
+    // Supprimer le fichier uploadé en cas d'erreur
+    if (req.file) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: 'Failed to upload logo file' });
+  }
+});
+
+// POST - Upload de logo/favicon SaaS (SuperAdmin uniquement)
+app.post('/api/app-settings/upload-logo', async (req, res) => {
+  try {
+    const { type, formats } = req.body; // type: 'logo' | 'favicon', formats: object with different sizes
+    
+    console.log(`🖼️ Upload ${type} SaaS:`, Object.keys(formats));
+    
+    // Sauvegarder tous les formats
+    const promises = Object.entries(formats).map(([formatKey, formatValue]) => {
+      const settingKey = `saas_${type}_${formatKey}`;
+      return pool.query(
+        `INSERT INTO app_settings (key, value, category, description) 
+         VALUES ($1, $2, $3, $4) 
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP`,
+        [
+          settingKey, 
+          formatValue, 
+          'branding', 
+          `${type === 'logo' ? 'Logo' : 'Favicon'} SaaS - Format ${formatKey}`
+        ]
+      );
+    });
+    
+    await Promise.all(promises);
+    
+    res.json({ 
+      success: true, 
+      message: `${type === 'logo' ? 'Logo' : 'Favicon'} SaaS mis à jour avec succès`,
+      formats: Object.keys(formats)
+    });
+    
+  } catch (error: any) {
+    console.error('Error uploading logo:', error);
+    res.status(500).json({ error: 'Failed to upload logo' });
   }
 });
 

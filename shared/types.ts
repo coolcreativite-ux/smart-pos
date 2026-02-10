@@ -253,7 +253,7 @@ export interface Sale {
 export interface Settings {
   tenantId: number; // Paramètres par tenant
   storeName: string;
-  logoUrl?: string;
+  storeLogoUrl?: string; // Logo du magasin (pour tickets uniquement)
   taxRate: number;
   loyaltyProgram: {
     enabled: boolean;

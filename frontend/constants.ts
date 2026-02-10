@@ -3,6 +3,50 @@ import { User, UserRole, Product, Settings, StockChangeReason, Permissions, Prom
 
 export const VALID_LICENSE_KEY = 'SMART-POS-DEMO-LICENSE-KEY';
 
+// Configuration du branding SaaS (logo dynamique depuis la base de données)
+export const SAAS_BRANDING = {
+  appName: 'Smart POS',
+  appSlogan: 'Point de Vente Intelligent',
+  logoUrl: '', // Pas de logo par défaut - doit être uploadé
+  faviconUrl: '',
+  alt: 'Smart POS Logo'
+};
+
+// Fonction pour récupérer les paramètres SaaS depuis l'API
+export const getSaasBranding = async () => {
+  try {
+    const apiUrl = `${window.location.protocol}//${window.location.hostname}:5000`;
+    const response = await fetch(`${apiUrl}/api/app-settings`);
+    if (response.ok) {
+      const settings = await response.json();
+      
+      // Construire les URLs complètes pour les logos
+      const logoUrl = settings.saas_logo_url 
+        ? (settings.saas_logo_url.startsWith('http') 
+            ? settings.saas_logo_url 
+            : `${apiUrl}${settings.saas_logo_url}`)
+        : SAAS_BRANDING.logoUrl;
+        
+      const faviconUrl = settings.saas_favicon_url 
+        ? (settings.saas_favicon_url.startsWith('http') 
+            ? settings.saas_favicon_url 
+            : `${apiUrl}${settings.saas_favicon_url}`)
+        : SAAS_BRANDING.faviconUrl;
+      
+      return {
+        appName: settings.app_name || SAAS_BRANDING.appName,
+        appSlogan: settings.app_slogan || SAAS_BRANDING.appSlogan,
+        logoUrl,
+        faviconUrl,
+        alt: `${settings.app_name || SAAS_BRANDING.appName} Logo`
+      };
+    }
+  } catch (error) {
+    console.error('Erreur chargement branding SaaS:', error);
+  }
+  return SAAS_BRANDING;
+};
+
 export const ROLE_PERMISSIONS: { [key in UserRole]: Permissions } = {
   [UserRole.SuperAdmin]: {
     viewAnalytics: false,

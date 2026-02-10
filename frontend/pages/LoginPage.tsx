@@ -9,6 +9,7 @@ import { useLicenses } from '../contexts/LicenseContext';
 import { UserRole } from '../types';
 import Spinner from '../components/Spinner';
 import { sendRealEmail } from '../services/emailService';
+import { useSaasBranding } from '../contexts/SaasBrandingContext';
 
 type AuthView = 'login' | 'register' | 'forgot';
 
@@ -27,6 +28,7 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const { t } = useLanguage();
   const { settings } = useSettings();
+  const { branding } = useSaasBranding();
   const { addUser } = useUsers();
   const { addToast } = useToast();
   const { generateTrialLicense } = useLicenses();
@@ -140,15 +142,22 @@ const LoginPage: React.FC = () => {
 
       <div className="w-full max-w-md p-8 space-y-8 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl shadow-indigo-500/5 border border-slate-100 dark:border-slate-800 animate-fade-in-up relative z-10">
         <div className="text-center">
-          {settings.logoUrl ? (
-              <img src={settings.logoUrl} alt="Store Logo" className="mx-auto h-16 w-auto object-contain mb-6" />
-          ) : (
-            <div className="mx-auto w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/20 rotate-3">
-                 <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L2 7V17L12 22L22 17V7L12 2Z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          {/* Favicon SaaS dynamique (logo carré) */}
+          <div className="mx-auto w-28 h-28 mb-6 flex items-center justify-center">
+            {(branding.faviconUrl || branding.logoUrl) ? (
+              <img 
+                src={branding.faviconUrl || branding.logoUrl} 
+                alt={branding.alt} 
+                className="w-full h-full object-contain drop-shadow-lg" 
+              />
+            ) : (
+              <div className="w-full h-full bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <svg className="w-16 h-16 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2L2 7V17L12 22L22 17V7L12 2Z" />
                 </svg>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">
             {view === 'login' ? "Connexion" : view === 'register' ? "Inscription" : "Récupération"}
           </h1>

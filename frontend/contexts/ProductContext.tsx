@@ -4,7 +4,6 @@ import { Product, ProductVariant, StockChangeReason, User, StockHistoryEntry, Us
 import { MOCK_PRODUCTS } from '../constants';
 import { useStores } from './StoreContext';
 import { useAuth } from './AuthContext';
-import { db } from '../lib/database';
 import { API_URL } from '../config';
 
 interface ProductContextType {
@@ -32,74 +31,40 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isLoading, setIsLoading] = useState(true);
   const [categories, setCategories] = useState<string[]>([]);
 
-  // Charger les produits depuis la base de données
+  // Charger les produits depuis la base de données via l'API backend
   const loadProducts = useCallback(async () => {
     try {
       setIsLoading(true);
       
-      // Charger les produits
-      const { data: productsData, error: productsError } = await db.from('products');
+      // Une seule requête au lieu de 4 - le backend retourne tout
+      const response = await fetch(`${API_URL}/api/products`);
       
-      if (productsError) {
-        console.warn('Erreur lors du chargement des produits:', productsError);
-        // Fallback vers les données mockées
-        const saved = localStorage.getItem('globalProducts');
-        if (saved) {
-          setAllProducts(JSON.parse(saved));
-        } else {
-          const initial = MOCK_PRODUCTS.map(p => ({...p, tenantId: 1}));
-          setAllProducts(initial);
-          localStorage.setItem('globalProducts', JSON.stringify(initial));
-        }
-        setIsLoading(false);
-        return;
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
+      const productsData = await response.json();
+
       if (productsData && productsData.length > 0) {
-        // Charger les variantes pour chaque produit
-        const { data: variantsData, error: variantsError } = await db.from('product_variants');
-        const { data: inventoryData, error: inventoryError } = await db.from('inventory');
-        const { data: categoriesData, error: categoriesError } = await db.from('categories');
-
-        if (variantsError || inventoryError || categoriesError) {
-          console.warn('Erreur lors du chargement des données produits');
-          setIsLoading(false);
-          return;
-        }
-
-        // Construire les produits avec leurs variantes et inventaire
+        // Le backend retourne déjà les produits avec variantes et inventaire
         const dbProducts: Product[] = productsData.map((dbProduct: any) => {
-          const productVariants = variantsData?.filter((v: any) => v.product_id === dbProduct.id) || [];
-          
-          const variants: ProductVariant[] = productVariants.map((dbVariant: any) => {
-            // Construire quantityByStore depuis l'inventaire
-            const variantInventory = inventoryData?.filter((inv: any) => inv.variant_id === dbVariant.id) || [];
-            const quantityByStore: { [storeId: number]: number } = {};
-            let totalStock = 0;
-            
-            variantInventory.forEach((inv: any) => {
-              quantityByStore[inv.store_id] = inv.quantity;
-              totalStock += inv.quantity;
-            });
-
-            return {
-              id: dbVariant.id,
-              selectedOptions: dbVariant.selected_options || {},
-              price: parseFloat(dbVariant.price),
-              costPrice: parseFloat(dbVariant.cost_price || 0),
-              stock_quantity: totalStock,
-              quantityByStore,
-              sku: dbVariant.sku,
-              barcode: dbVariant.barcode,
-              stock_history: [] // TODO: Charger l'historique si nécessaire
-            };
-          });
+          const variants: ProductVariant[] = (dbProduct.variants || []).map((dbVariant: any) => ({
+            id: dbVariant.id,
+            selectedOptions: dbVariant.selectedoptions || dbVariant.selected_options || {},
+            price: parseFloat(dbVariant.price),
+            costPrice: parseFloat(dbVariant.costprice || dbVariant.cost_price || 0),
+            stock_quantity: 0, // Sera calculé depuis quantityByStore
+            quantityByStore: {}, // TODO: Charger depuis inventory
+            sku: dbVariant.sku,
+            barcode: dbVariant.barcode,
+            stock_history: []
+          }));
 
           return {
             id: dbProduct.id,
             tenantId: dbProduct.tenant_id,
             name: dbProduct.name,
-            category: categoriesData?.find((c: any) => c.id === dbProduct.category_id)?.name || 'Autre',
+            category: dbProduct.category || 'Autre',
             description: dbProduct.description,
             imageUrl: dbProduct.image_url,
             attributes: dbProduct.attributes || [],
@@ -113,20 +78,21 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
         });
 
         setAllProducts(dbProducts);
-        
-        // Extraire les catégories
-        const categoryNames = categoriesData?.map((c: any) => c.name) || [];
-        setCategories(categoryNames);
-        
-        console.log('✅ Produits chargés depuis la base de données:', dbProducts.length);
+        localStorage.setItem('globalProducts', JSON.stringify(dbProducts));
+        console.log('✅ Produits chargés depuis l\'API:', dbProducts.length);
+      } else {
+        console.log('⚠️ Aucun produit en DB');
+        setAllProducts([]);
       }
     } catch (error) {
-      console.warn('Erreur lors du chargement des produits:', error);
+      console.warn('Erreur lors du chargement des produits depuis l\'API:', error);
       // Fallback vers localStorage
       const saved = localStorage.getItem('globalProducts');
       if (saved) {
+        console.log('📦 Chargement depuis localStorage');
         setAllProducts(JSON.parse(saved));
       } else {
+        console.log('📦 Utilisation des données mock');
         const initial = MOCK_PRODUCTS.map(p => ({...p, tenantId: 1}));
         setAllProducts(initial);
         localStorage.setItem('globalProducts', JSON.stringify(initial));
@@ -136,10 +102,29 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   }, []);
 
-  // Charger les produits au démarrage
+  // Charger les catégories séparément
+  const loadCategories = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/categories`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const categoryNames = data.map((c: any) => c.name);
+      setCategories(categoryNames);
+      console.log('✅ Catégories chargées depuis l\'API:', categoryNames.length);
+    } catch (error) {
+      console.warn('Erreur lors du chargement des catégories:', error);
+    }
+  }, []);
+
+  // Charger les produits et catégories au démarrage
   useEffect(() => {
     loadProducts();
-  }, [loadProducts]);
+    loadCategories();
+  }, [loadProducts, loadCategories]);
 
   // FILTRAGE MULTI-TENANT
   const products = useMemo(() => {
@@ -155,7 +140,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const addProduct = async (productData: Omit<Product, 'id' | 'tenantId'>, creator: User) => {
     try {
-      // TODO: Implémenter l'ajout en base de données
+      // TODO: Implémenter l'ajout via l'API
       const newProduct: Product = { 
           ...productData, 
           id: Date.now(), 
@@ -306,14 +291,14 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
 
       console.log('✅ Produit mis à jour dans la base de données');
+      // Recharger tous les produits depuis la DB
+      await loadProducts();
     } catch (error) {
       console.error('❌ Erreur API lors de la mise à jour du produit:', error);
-      // Continuer avec la mise à jour locale même en cas d'erreur
+      // Fallback: Mettre à jour localement
+      saveToGlobal(allProducts.map(p => p.id === updatedProductData.id ? updatedProductData : p));
     }
-
-    // Mettre à jour le state local
-    saveToGlobal(allProducts.map(p => p.id === updatedProductData.id ? updatedProductData : p));
-  }, [allProducts]);
+  }, [allProducts, loadProducts]);
 
   const deleteProduct = useCallback(async (productId: number) => {
     // Supprimer dans la base de données via l'API
@@ -328,14 +313,13 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
 
       console.log('✅ Produit supprimé de la base de données');
+      // Recharger tous les produits depuis la DB
+      await loadProducts();
     } catch (error) {
       console.error('❌ Erreur API lors de la suppression du produit:', error);
       throw error; // Propager l'erreur pour que l'UI puisse la gérer
     }
-
-    // Supprimer du state local
-    saveToGlobal(allProducts.filter(p => p.id !== productId));
-  }, [allProducts]);
+  }, [loadProducts]);
   
   const addCategory = useCallback(async (categoryName: string): Promise<boolean> => {
     if (!user) return false;
@@ -371,14 +355,14 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
       const newCategory = await response.json();
       console.log('✅ Catégorie créée:', newCategory);
 
-      // Ajouter à l'état local
-      setCategories(prev => [...prev, trimmedName]);
+      // Recharger les catégories
+      await loadCategories();
       return true;
     } catch (error) {
       console.error('❌ Erreur création catégorie:', error);
       return false;
     }
-  }, [categories, user]);
+  }, [categories, user, loadCategories]);
 
   const resetProducts = useCallback((user: User) => {
     const otherTenantsProducts = allProducts.filter(p => p.tenantId !== user.tenantId);

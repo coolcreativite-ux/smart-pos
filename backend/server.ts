@@ -661,6 +661,31 @@ app.delete('/api/customers/:id', async (req, res) => {
   }
 });
 
+// UPDATE customer endpoint
+app.put('/api/customers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { first_name, last_name, email, phone, loyalty_points, store_credit, store_id } = req.body;
+
+    console.log(`✏️ Mise à jour client ${id}:`, req.body);
+
+    const result = await pool.query(
+      'UPDATE customers SET first_name = $1, last_name = $2, email = $3, phone = $4, loyalty_points = $5, store_credit = $6, store_id = $7 WHERE id = $8 RETURNING *',
+      [first_name, last_name, email, phone, loyalty_points || 0, store_credit || 0, store_id, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Client non trouvé' });
+    }
+
+    console.log('✅ Client mis à jour:', result.rows[0]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Erreur mise à jour client:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
 // ===== LICENSES ENDPOINTS =====
 app.get('/api/licenses', async (req, res) => {
   try {

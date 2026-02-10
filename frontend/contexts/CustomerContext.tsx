@@ -4,7 +4,6 @@ import { Customer, UserRole } from '../types';
 import { MOCK_CUSTOMERS } from '../constants';
 import { useStores } from './StoreContext';
 import { useAuth } from './AuthContext';
-import { db } from '../lib/database';
 import { API_URL } from '../config';
 
 interface CustomerContextType {
@@ -25,24 +24,16 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const { currentStore } = useStores();
 
-  // Charger les clients depuis la base de données
+  // Charger les clients depuis la base de données via l'API backend
   const loadCustomers = useCallback(async () => {
     try {
-      const { data, error } = await db.from('customers');
+      const response = await fetch(`${API_URL}/api/customers`);
       
-      if (error) {
-        console.warn('Erreur lors du chargement des clients depuis la DB:', error);
-        // Fallback vers localStorage
-        const saved = localStorage.getItem('globalCustomers');
-        if (saved) {
-          setAllCustomers(JSON.parse(saved));
-        } else {
-          const initial = MOCK_CUSTOMERS.map(c => ({...c, tenantId: 1}));
-          setAllCustomers(initial);
-          localStorage.setItem('globalCustomers', JSON.stringify(initial));
-        }
-        return;
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+
+      const data = await response.json();
 
       if (data && data.length > 0) {
         // Convertir les données de la DB au format attendu
@@ -60,15 +51,21 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
         }));
 
         setAllCustomers(dbCustomers);
-        console.log('✅ Clients chargés depuis la base de données:', dbCustomers.length);
+        localStorage.setItem('globalCustomers', JSON.stringify(dbCustomers));
+        console.log('✅ Clients chargés depuis l\'API:', dbCustomers.length);
+      } else {
+        console.log('⚠️ Aucun client en DB');
+        setAllCustomers([]);
       }
     } catch (error) {
-      console.warn('Erreur lors du chargement des clients:', error);
+      console.warn('Erreur lors du chargement des clients depuis l\'API:', error);
       // Fallback vers localStorage
       const saved = localStorage.getItem('globalCustomers');
       if (saved) {
+        console.log('📦 Chargement depuis localStorage');
         setAllCustomers(JSON.parse(saved));
       } else {
+        console.log('📦 Utilisation des données mock');
         const initial = MOCK_CUSTOMERS.map(c => ({...c, tenantId: 1}));
         setAllCustomers(initial);
         localStorage.setItem('globalCustomers', JSON.stringify(initial));
@@ -113,6 +110,12 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
 
       if (response.ok) {
         const result = await response.json();
+        console.log('✅ Client ajouté en DB:', result);
+        
+        // Recharger tous les clients depuis la DB
+        await loadCustomers();
+        
+        // Retourner le client créé
         const newCustomer: Customer = {
           id: result.id,
           tenantId: user.tenantId,
@@ -122,8 +125,6 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
           storeCredit: 0,
           storeId: currentStore?.id || 1,
         };
-        
-        saveToGlobal([...allCustomers, newCustomer]);
         return newCustomer;
       }
     } catch (error) {
@@ -142,12 +143,12 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
     saveToGlobal([...allCustomers, newCustomer]);
     return newCustomer;
-  }, [allCustomers, user, currentStore]);
+  }, [allCustomers, user, currentStore, loadCustomers]);
 
   const updateCustomer = useCallback(async (customerData: Customer) => {
     try {
       // Mettre à jour en base de données
-      await fetch(`${API_URL}/api/customers/${customerData.id}`, {
+      const response = await fetch(`${API_URL}/api/customers/${customerData.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -160,13 +161,20 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
           store_id: customerData.storeId
         })
       });
+      
+      if (response.ok) {
+        console.log('✅ Client mis à jour en DB');
+        // Recharger tous les clients depuis la DB
+        await loadCustomers();
+        return;
+      }
     } catch (error) {
       console.warn('Erreur lors de la mise à jour du client en DB:', error);
     }
 
-    // Mettre à jour localement
+    // Fallback: Mettre à jour localement
     saveToGlobal(allCustomers.map(c => (c.id === customerData.id ? customerData : c)));
-  }, [allCustomers]);
+  }, [allCustomers, loadCustomers]);
 
   const deleteCustomer = useCallback(async (customerId: number): Promise<void> => {
     // Supprimer dans la base de données via l'API
@@ -181,14 +189,13 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
       }
 
       console.log('✅ Client supprimé de la base de données');
+      // Recharger tous les clients depuis la DB
+      await loadCustomers();
     } catch (error) {
       console.error('❌ Erreur API lors de la suppression du client:', error);
       throw error; // Propager l'erreur pour que l'UI puisse la gérer
     }
-
-    // Supprimer du state local
-    saveToGlobal(allCustomers.filter(c => c.id !== customerId));
-  }, [allCustomers]);
+  }, [loadCustomers]);
   
   const updateCustomerAfterSale = useCallback((customerId: number, saleId: string, pointsEarned: number, pointsUsed: number) => {
     const updatedCustomers = allCustomers.map(c => {

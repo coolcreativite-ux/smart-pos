@@ -947,6 +947,72 @@ app.get('/api/stores', async (req, res) => {
   }
 });
 
+app.post('/api/stores', async (req, res) => {
+  try {
+    console.log('🏪 Création magasin:', req.body);
+    const { tenant_id, name, location, phone } = req.body;
+
+    if (!name || !tenant_id) {
+      return res.status(400).json({ error: 'Nom et tenant_id requis' });
+    }
+
+    const result = await pool.query(
+      'INSERT INTO stores (tenant_id, name, location, phone) VALUES ($1, $2, $3, $4) RETURNING *',
+      [tenant_id, name, location, phone]
+    );
+
+    console.log('✅ Magasin créé:', result.rows[0]);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Erreur création magasin:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
+app.put('/api/stores/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, location, phone } = req.body;
+
+    console.log(`✏️ Mise à jour magasin ${id}:`, req.body);
+
+    const result = await pool.query(
+      'UPDATE stores SET name = $1, location = $2, phone = $3 WHERE id = $4 RETURNING *',
+      [name, location, phone, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Magasin non trouvé' });
+    }
+
+    console.log('✅ Magasin mis à jour:', result.rows[0]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Erreur mise à jour magasin:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
+app.delete('/api/stores/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🗑️ Suppression magasin ${id}`);
+
+    const result = await pool.query('DELETE FROM stores WHERE id = $1 RETURNING *', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Magasin non trouvé' });
+    }
+
+    console.log('✅ Magasin supprimé:', id);
+    res.json({ message: 'Magasin supprimé', store: result.rows[0] });
+  } catch (error) {
+    console.error('❌ Erreur suppression magasin:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
 // ===== SUPPLIERS ENDPOINTS =====
 app.get('/api/suppliers', async (req, res) => {
   try {

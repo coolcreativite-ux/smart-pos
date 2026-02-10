@@ -31,7 +31,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       
       if (error) {
         console.warn('Erreur lors du chargement des magasins depuis la DB:', error);
-        // Fallback vers localStorage
+        // Fallback vers localStorage uniquement si la DB échoue
         const saved = localStorage.getItem('globalStores');
         if (saved) {
           setAllStores(JSON.parse(saved));
@@ -53,7 +53,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }));
 
         setAllStores(dbStores);
+        // Mettre à jour le localStorage avec les données de la DB (source de vérité)
+        localStorage.setItem('globalStores', JSON.stringify(dbStores));
         console.log('✅ Magasins chargés depuis la base de données:', dbStores.length);
+      } else {
+        // Si la DB est vide, utiliser les données mock
+        console.log('⚠️ Aucun magasin en DB, utilisation des données mock');
+        setAllStores(MOCK_STORES);
+        localStorage.setItem('globalStores', JSON.stringify(MOCK_STORES));
       }
     } catch (error) {
       console.warn('Erreur lors du chargement des magasins:', error);
@@ -132,14 +139,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (response.ok) {
         const result = await response.json();
-        const newStore: Store = {
-          id: result.id,
-          tenantId: user.tenantId,
-          ...storeData
-        };
+        console.log('✅ Magasin ajouté en DB:', result);
         
-        saveToGlobal([...allStores, newStore]);
-        await logAction(user.id, user.username, 'Add Store', `Added store: ${newStore.name}`, user.tenantId);
+        // Recharger tous les magasins depuis la DB pour être sûr d'avoir les données à jour
+        await loadStores();
+        await logAction(user.id, user.username, 'Add Store', `Added store: ${storeData.name}`, user.tenantId);
         return;
       }
     } catch (error) {
@@ -154,12 +158,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
     saveToGlobal([...allStores, newStore]);
     await logAction(user.id, user.username, 'Add Store', `Added store: ${newStore.name}`, user.tenantId);
-  }, [allStores, user, logAction]);
+  }, [allStores, user, logAction, loadStores]);
 
   const updateStore = useCallback(async (updatedStore: Store) => {
     try {
       // Mettre à jour en base de données
-      await fetch(`${API_URL}/api/stores/${updatedStore.id}`, {
+      const response = await fetch(`${API_URL}/api/stores/${updatedStore.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -168,29 +172,45 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           phone: updatedStore.phone
         })
       });
+      
+      if (response.ok) {
+        console.log('✅ Magasin mis à jour en DB');
+        // Recharger tous les magasins depuis la DB
+        await loadStores();
+        if (currentStore?.id === updatedStore.id) setCurrentStoreState(updatedStore);
+        return;
+      }
     } catch (error) {
       console.warn('Erreur lors de la mise à jour du magasin en DB:', error);
     }
 
-    // Mettre à jour localement
+    // Fallback: Mettre à jour localement
     saveToGlobal(allStores.map(s => s.id === updatedStore.id ? updatedStore : s));
     if (currentStore?.id === updatedStore.id) setCurrentStoreState(updatedStore);
-  }, [allStores, currentStore]);
+  }, [allStores, currentStore, loadStores]);
 
   const deleteStore = useCallback(async (storeId: number) => {
     try {
       // Supprimer en base de données
-      await fetch(`${API_URL}/api/stores/${storeId}`, {
+      const response = await fetch(`${API_URL}/api/stores/${storeId}`, {
         method: 'DELETE'
       });
+      
+      if (response.ok) {
+        console.log('✅ Magasin supprimé de la DB');
+        // Recharger tous les magasins depuis la DB
+        await loadStores();
+        if (currentStore?.id === storeId) setCurrentStoreState(null);
+        return;
+      }
     } catch (error) {
       console.warn('Erreur lors de la suppression du magasin en DB:', error);
     }
 
-    // Supprimer localement
+    // Fallback: Supprimer localement
     saveToGlobal(allStores.filter(s => s.id !== storeId));
     if (currentStore?.id === storeId) setCurrentStoreState(null);
-  }, [allStores, currentStore]);
+  }, [allStores, currentStore, loadStores]);
 
   return (
     <StoreContext.Provider value={{ 

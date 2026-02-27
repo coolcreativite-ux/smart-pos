@@ -45,7 +45,21 @@ export const SalesHistoryProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   const saveToGlobal = (newList: Sale[]) => {
       setAllSales(newList);
-      localStorage.setItem('globalSalesHistory', JSON.stringify(newList));
+      // Limiter à 100 ventes les plus récentes pour éviter QuotaExceededError
+      const limitedList = newList.slice(0, 100);
+      try {
+        localStorage.setItem('globalSalesHistory', JSON.stringify(limitedList));
+      } catch (error) {
+        console.warn('⚠️ Impossible de sauvegarder dans localStorage (quota dépassé):', error);
+        // Essayer de nettoyer et réessayer avec moins de données
+        localStorage.removeItem('globalSalesHistory');
+        const veryLimitedList = newList.slice(0, 50);
+        try {
+          localStorage.setItem('globalSalesHistory', JSON.stringify(veryLimitedList));
+        } catch (e) {
+          console.error('❌ Impossible de sauvegarder même avec 50 ventes');
+        }
+      }
   };
 
   // Charger les ventes depuis la base de données

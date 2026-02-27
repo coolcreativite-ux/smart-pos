@@ -2079,6 +2079,14 @@ app.get('/api/sales', async (req, res) => {
       ORDER BY s.created_at DESC
     `);
     
+    // Log d'un exemple de vente pour déboguer
+    if (result.rows.length > 0) {
+      console.log('📦 Exemple de vente retournée:', {
+        id: result.rows[0].id,
+        items: result.rows[0].items
+      });
+    }
+    
     console.log(`✅ ${result.rows.length} ventes récupérées`);
     res.json(result.rows);
   } catch (error) {

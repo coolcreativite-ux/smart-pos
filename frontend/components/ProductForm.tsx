@@ -609,7 +609,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productToEdit, onSave, onCanc
                                     )}
                                 </div>
                                 {'id' in variant && (
-                                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Utilisez "Réapprovisionner" pour modifier le stock</p>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Utilisez "Ajuster" pour modifier le stock</p>
                                 )}
                                 {stockError && <p className="text-xs text-red-500 mt-1">{stockError}</p>}
                               </div>

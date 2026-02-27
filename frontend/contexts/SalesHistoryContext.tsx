@@ -70,6 +70,7 @@ export const SalesHistoryProvider: React.FC<{ children: ReactNode }> = ({ childr
           customerId: dbSale.customer_id,
           timestamp: new Date(dbSale.created_at),
           items: dbSale.items || [],
+          user: dbSale.user || { id: dbSale.user_id, username: 'Unknown', role: 'cashier' },
           subtotal: parseFloat(dbSale.subtotal),
           discount: parseFloat(dbSale.discount || 0),
           loyaltyDiscount: parseFloat(dbSale.loyalty_discount || 0),

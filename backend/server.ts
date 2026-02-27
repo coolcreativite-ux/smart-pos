@@ -2035,18 +2035,38 @@ app.get('/api/sales', async (req, res) => {
         s.*,
         json_agg(
           json_build_object(
-            'id', si.id,
-            'product_id', si.product_id,
-            'variant_id', si.variant_id,
+            'id', CONCAT(si.product_id, '-', si.variant_id),
+            'productId', si.product_id,
+            'productName', p.name,
+            'imageUrl', p.image_url,
+            'variantName', COALESCE(
+              (SELECT STRING_AGG(CONCAT(key, ': ', value), ', ')
+               FROM json_each_text(pv.selected_options)),
+              'Standard'
+            ),
+            'variant', json_build_object(
+              'id', pv.id,
+              'selectedOptions', pv.selected_options,
+              'price', pv.price,
+              'costPrice', pv.cost_price,
+              'sku', pv.sku,
+              'barcode', pv.barcode
+            ),
             'quantity', si.quantity,
-            'returned_quantity', si.returned_quantity,
-            'unit_price', si.unit_price,
-            'total_price', si.total_price
-          )
-        ) as items
+            'returnedQuantity', COALESCE(si.returned_quantity, 0)
+          ) ORDER BY si.id
+        ) as items,
+        json_build_object(
+          'id', u.id,
+          'username', u.username,
+          'role', u.role
+        ) as user
       FROM sales s
       LEFT JOIN sale_items si ON s.id = si.sale_id
-      GROUP BY s.id
+      LEFT JOIN products p ON si.product_id = p.id
+      LEFT JOIN product_variants pv ON si.variant_id = pv.id
+      LEFT JOIN users u ON s.user_id = u.id
+      GROUP BY s.id, u.id, u.username, u.role
       ORDER BY s.created_at DESC
     `);
     

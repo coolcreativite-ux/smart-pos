@@ -73,6 +73,11 @@ export const SalesHistoryProvider: React.FC<{ children: ReactNode }> = ({ childr
       }
 
       const data = await response.json();
+      
+      console.log('📦 [Frontend] Données brutes reçues:', data.length > 0 ? {
+        firstSale: data[0],
+        itemsRaw: data[0]?.items
+      } : 'Aucune vente');
 
       if (data && data.length > 0) {
         // Convertir les données de la DB au format attendu
@@ -83,7 +88,7 @@ export const SalesHistoryProvider: React.FC<{ children: ReactNode }> = ({ childr
           userId: dbSale.user_id,
           customerId: dbSale.customer_id,
           timestamp: new Date(dbSale.created_at),
-          items: dbSale.items || [],
+          items: Array.isArray(dbSale.items) ? dbSale.items : [],
           user: dbSale.user || { id: dbSale.user_id, username: 'Unknown', role: 'cashier' },
           subtotal: parseFloat(dbSale.subtotal),
           discount: parseFloat(dbSale.discount || 0),
@@ -107,7 +112,23 @@ export const SalesHistoryProvider: React.FC<{ children: ReactNode }> = ({ childr
         });
 
         setAllSales(dbSales);
-        localStorage.setItem('globalSalesHistory', JSON.stringify(dbSales));
+        
+        // Limiter à 100 ventes les plus récentes pour éviter QuotaExceededError
+        const limitedList = dbSales.slice(0, 100);
+        try {
+          localStorage.setItem('globalSalesHistory', JSON.stringify(limitedList));
+        } catch (error) {
+          console.warn('⚠️ Impossible de sauvegarder dans localStorage (quota dépassé):', error);
+          // Essayer de nettoyer et réessayer avec moins de données
+          localStorage.removeItem('globalSalesHistory');
+          const veryLimitedList = dbSales.slice(0, 50);
+          try {
+            localStorage.setItem('globalSalesHistory', JSON.stringify(veryLimitedList));
+          } catch (e) {
+            console.error('❌ Impossible de sauvegarder même avec 50 ventes');
+          }
+        }
+        
         console.log('✅ Ventes chargées depuis l\'API:', dbSales.length);
       }
     } catch (error) {

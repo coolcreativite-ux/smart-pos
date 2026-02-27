@@ -21,7 +21,13 @@ const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://192.168.8.100:3001'],
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:3001', 
+    'http://192.168.8.100:3001',
+    'https://smartpos.cooldigital.africa',
+    'https://api.smartpos.cooldigital.africa'
+  ],
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' })); // Augmenter la limite pour les images

@@ -323,7 +323,12 @@ app.post('/api/action-logs', async (req, res) => {
 // ===== PRODUCTS ENDPOINTS =====
 app.get('/api/products', async (req, res) => {
   try {
-    console.log('🛍️ Récupération produits...');
+    const tenantId = req.headers['x-tenant-id'];
+    console.log('🛍️ Récupération produits pour tenant:', tenantId);
+    
+    if (!tenantId) {
+      return res.status(400).json({ error: 'x-tenant-id header requis' });
+    }
     
     // Récupérer les produits avec variantes ET catégories
     const result = await pool.query(`
@@ -348,9 +353,10 @@ app.get('/api/products', async (req, res) => {
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN product_variants pv ON p.id = pv.product_id
+      WHERE p.tenant_id = $1
       GROUP BY p.id, c.name
       ORDER BY p.name
-    `);
+    `, [tenantId]);
 
     // Récupérer l'inventaire pour toutes les variantes
     const inventoryResult = await pool.query(`

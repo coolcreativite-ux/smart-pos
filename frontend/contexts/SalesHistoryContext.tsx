@@ -100,6 +100,12 @@ export const SalesHistoryProvider: React.FC<{ children: ReactNode }> = ({ childr
           installments: [] // TODO: Charger les installments si nécessaire
         }));
 
+        console.log('📦 [Frontend] Exemple de vente chargée:', {
+          id: dbSales[0]?.id,
+          items: dbSales[0]?.items,
+          itemsCount: dbSales[0]?.items?.length
+        });
+
         setAllSales(dbSales);
         localStorage.setItem('globalSalesHistory', JSON.stringify(dbSales));
         console.log('✅ Ventes chargées depuis l\'API:', dbSales.length);

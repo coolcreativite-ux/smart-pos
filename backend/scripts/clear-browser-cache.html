@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Browser Cache</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .danger {
+            background: #f44336;
+        }
+        .danger:hover {
+            background: #da190b;
+        }
+        .success {
+            color: green;
+            margin-top: 20px;
+            padding: 10px;
+            background: #e8f5e9;
+            border-radius: 4px;
+        }
+        h1 {
+            color: #333;
+        }
+        p {
+            color: #666;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Nettoyage du Cache Navigateur</h1>
+        <p>Cet outil va nettoyer toutes les données locales de l'application Smart POS stockées dans votre navigateur.</p>
+        
+        <h3>Que va-t-il se passer ?</h3>
+        <ul>
+            <li>Suppression de toutes les données localStorage</li>
+            <li>Suppression de toutes les données sessionStorage</li>
+            <li>Suppression de tous les cookies du domaine</li>
+            <li>Rechargement automatique de la page</li>
+        </ul>
+        
+        <p><strong>⚠️ Attention :</strong> Vous serez déconnecté et devrez vous reconnecter.</p>
+        
+        <button onclick="clearAll()">🧹 Nettoyer Tout</button>
+        <button class="danger" onclick="clearLocalStorageOnly()">🗑️ Nettoyer localStorage uniquement</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function clearAll() {
+            try {
+                // Clear localStorage
+                const localStorageCount = localStorage.length;
+                localStorage.clear();
+                
+                // Clear sessionStorage
+                const sessionStorageCount = sessionStorage.length;
+                sessionStorage.clear();
+                
+                // Clear cookies
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                });
+                
+                document.getElementById('result').innerHTML = `
+                    <div class="success">
+                        ✅ Nettoyage terminé !<br>
+                        - ${localStorageCount} entrées localStorage supprimées<br>
+                        - ${sessionStorageCount} entrées sessionStorage supprimées<br>
+                        - Cookies supprimés<br><br>
+                        Rechargement dans 2 secondes...
+                    </div>
+                `;
+                
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <div style="color: red; margin-top: 20px;">
+                        ❌ Erreur: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function clearLocalStorageOnly() {
+            try {
+                const count = localStorage.length;
+                const keys = Object.keys(localStorage);
+                
+                localStorage.clear();
+                
+                document.getElementById('result').innerHTML = `
+                    <div class="success">
+                        ✅ localStorage nettoyé !<br>
+                        ${count} entrées supprimées:<br>
+                        ${keys.map(k => `- ${k}`).join('<br>')}<br><br>
+                        Rechargement dans 2 secondes...
+                    </div>
+                `;
+                
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <div style="color: red; margin-top: 20px;">
+                        ❌ Erreur: ${error.message}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

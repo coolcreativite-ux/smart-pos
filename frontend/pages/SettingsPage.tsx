@@ -8,6 +8,7 @@ import { useProducts } from '../hooks/useProducts';
 import { useLanguage } from '../hooks/useLanguage';
 import { User, UserRole } from '../types';
 import AddUserModal from '../components/AddUserModal';
+import ResetPasswordModal from '../components/ResetPasswordModal';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import Spinner from '../components/Spinner';
@@ -51,7 +52,7 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<string 
 
 const SettingsPage: React.FC = () => {
   const { settings, updateSettings } = useSettings();
-  const { users, updateUser, deleteUser, addUser } = useUsers();
+  const { users, updateUser, deleteUser, addUser, resetPassword } = useUsers();
   const { clearSalesHistory } = useSalesHistory();
   const { resetProducts } = useProducts();
   const { t, language } = useLanguage();
@@ -69,6 +70,7 @@ const SettingsPage: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userStoreFilter, setUserStoreFilter] = useState<number | 'all'>('all');
   const [showPrintingSettings, setShowPrintingSettings] = useState(false);
+  const [resettingPasswordUser, setResettingPasswordUser] = useState<User | null>(null);
 
   // Cropper state for logo
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
@@ -189,8 +191,31 @@ const SettingsPage: React.FC = () => {
         return;
     }
     if (window.confirm(t('confirmDeleteUser'))) {
-        await deleteUser(userId);
+        await deleteUser(userId, currentUser?.id);
         addToast(t('userDeletedSuccess'), 'success');
+    }
+  };
+
+  const handleResetPassword = async (newPassword: string) => {
+    if (!resettingPasswordUser || !currentUser) return;
+
+    try {
+      const result = await resetPassword(resettingPasswordUser.id, newPassword, currentUser.id);
+      
+      if (result === 'success') {
+        addToast(t('resetPasswordSuccess'), 'success');
+      } else if (result === 'unauthorized') {
+        addToast(t('resetPasswordUnauthorized'), 'error');
+      } else if (result === 'cannot_reset_admin_password') {
+        addToast(t('resetPasswordCannotResetAdmin'), 'error');
+      } else if (result === 'insufficient_permissions') {
+        addToast(t('resetPasswordInsufficientPermissions'), 'error');
+      } else {
+        addToast(t('resetPasswordError'), 'error');
+      }
+    } catch (error) {
+      console.error('Erreur réinitialisation:', error);
+      addToast(t('resetPasswordError'), 'error');
     }
   };
   
@@ -449,6 +474,14 @@ const SettingsPage: React.FC = () => {
                           {t('edit')}
                       </button>
                       <button 
+                          onClick={() => setResettingPasswordUser(user)}
+                          disabled={currentUser?.role !== 'superadmin' && currentUser?.role !== 'owner' && currentUser?.role !== 'admin'}
+                          className="font-medium text-amber-600 dark:text-amber-400 hover:underline disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
+                          title="Réinitialiser le mot de passe"
+                      >
+                          🔑
+                      </button>
+                      <button 
                           onClick={() => handleDeleteUser(user.id)} 
                           disabled={currentUser?.id === user.id}
                           className="font-medium text-red-600 dark:text-red-400 hover:underline disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
@@ -474,6 +507,14 @@ const SettingsPage: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
                                 <button onClick={() => handleEditUser(user)} className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline">{t('edit')}</button>
+                                <button 
+                                    onClick={() => setResettingPasswordUser(user)}
+                                    disabled={currentUser?.role !== 'superadmin' && currentUser?.role !== 'owner' && currentUser?.role !== 'admin'}
+                                    className="text-sm font-medium text-amber-600 dark:text-amber-400 hover:underline disabled:text-slate-400 dark:disabled:text-slate-500"
+                                    title="Réinitialiser"
+                                >
+                                    🔑
+                                </button>
                                 <button onClick={() => handleDeleteUser(user.id)} disabled={currentUser?.id === user.id} className="text-sm font-medium text-red-600 dark:text-red-400 hover:underline disabled:text-slate-400 dark:disabled:text-slate-500">{t('delete')}</button>
                             </div>
                         </div>
@@ -561,6 +602,14 @@ const SettingsPage: React.FC = () => {
 
       {showPrintingSettings && (
         <PrintingSettings onClose={() => setShowPrintingSettings(false)} />
+      )}
+
+      {resettingPasswordUser && (
+        <ResetPasswordModal
+          user={resettingPasswordUser}
+          onClose={() => setResettingPasswordUser(null)}
+          onReset={handleResetPassword}
+        />
       )}
 
     </div>

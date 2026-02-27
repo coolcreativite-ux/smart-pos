@@ -543,6 +543,48 @@ export const TRANSLATIONS: { [key: string]: { [key: string]: string } } = {
         permissionManageLicenses: "Gérer les licences (Admin SaaS)",
         sendInvite: "Envoyer invitation",
         sendInviteDesc: "L'utilisateur recevra ses accès par email.",
+        
+        // Réinitialisation de mot de passe
+        resetPassword: "Réinitialiser le mot de passe",
+        resetPasswordTitle: "Réinitialiser le mot de passe",
+        newPasswordLabel: "Nouveau mot de passe",
+        confirmPasswordLabel: "Confirmer le mot de passe",
+        confirmPasswordPlaceholder: "Confirmer le mot de passe",
+        resetButton: "Réinitialiser",
+        resetting: "Réinitialisation...",
+        resetPasswordWarning: "⚠️ Cette action réinitialisera le mot de passe de l'utilisateur. L'utilisateur devra utiliser le nouveau mot de passe pour se connecter.",
+        resetPasswordSuccess: "Mot de passe réinitialisé avec succès",
+        resetPasswordUnauthorized: "Vous n'êtes pas autorisé à réinitialiser ce mot de passe",
+        resetPasswordCannotResetAdmin: "Impossible de réinitialiser le mot de passe d'un administrateur",
+        resetPasswordInsufficientPermissions: "Permissions insuffisantes",
+        resetPasswordError: "Erreur lors de la réinitialisation du mot de passe",
+        passwordMinLength: "Le mot de passe doit contenir au moins 6 caractères",
+        useResetButton: "💡 Pour changer le mot de passe, utilisez le bouton 🔑 \"Réinitialiser\" dans la liste des utilisateurs.",
+        
+        // Actions logs (traductions pour les logs d'activité)
+        passwordChange: "Changement de mot de passe",
+        passwordUpdatedSuccessfully: "Mot de passe mis à jour avec succès",
+        updateUser: "Mise à jour utilisateur",
+        updatedUser: "Utilisateur mis à jour",
+        
+        // Titres de modaux
+        editUser: "Modifier l'utilisateur",
+        modificationAccess: "Modification des informations",
+        
+        // Codes promo
+        addPromoCode: "Ajouter un code promo",
+        promoCodeManagement: "Gestion des codes promo",
+        percentage: "Pourcentage",
+        fixed: "Montant fixe",
+        code: "Code",
+        type: "Type",
+        value: "Valeur",
+        status: "Statut",
+        active: "Actif",
+        inactive: "Inactif",
+        
+        // Boutons génériques
+        testLog: "Journal de test",
     },
     en: {
         // Non utilisé

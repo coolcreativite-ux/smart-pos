@@ -54,7 +54,10 @@ const PrintableReceipt: React.FC<PrintableReceiptProps> = ({
   const sousTotal = sale.subtotal;
   const totalRemises = (sale.discount || 0) + (sale.loyaltyDiscount || 0);
   const montantHT = sousTotal - totalRemises;
-  const montantTTC = sale.total;
+  const montantTVA = sale.tax;
+  const montantTTCAvantCredit = montantHT + montantTVA;
+  const creditMagasinUtilise = Math.max(0, montantTTCAvantCredit - sale.total);
+  const montantTTC = sale.total; // Montant final à payer
   const tauxTVA = montantHT > 0 ? ((sale.tax / montantHT) * 100) : settings.taxRate;
 
   // Générer un ID court pour le ticket
@@ -245,16 +248,32 @@ const PrintableReceipt: React.FC<PrintableReceiptProps> = ({
         
         <div className="flex justify-between">
           <span>TVA ({tauxTVA.toFixed(1)}%):</span>
-          <span>{formatCurrency(sale.tax)}</span>
+          <span>{formatCurrency(montantTVA)}</span>
         </div>
 
         {/* Ligne de séparation avant total */}
         <div className="border-t-2 border-black pt-2 mt-2">
           <div className="flex justify-between font-black text-xs uppercase">
             <span>TOTAL TTC:</span>
-            <span>{formatCurrency(montantTTC)}</span>
+            <span>{formatCurrency(montantTTCAvantCredit)}</span>
           </div>
         </div>
+        
+        {/* Afficher le crédit magasin utilisé si applicable */}
+        {creditMagasinUtilise > 0 && (
+          <div className="flex justify-between text-green-600 mt-2">
+            <span>Crédit magasin utilisé:</span>
+            <span>-{formatCurrency(creditMagasinUtilise)}</span>
+          </div>
+        )}
+        
+        {/* Montant net à payer si crédit utilisé */}
+        {creditMagasinUtilise > 0 && (
+          <div className="flex justify-between font-black text-xs uppercase mt-2 pt-2 border-t border-black">
+            <span>NET À PAYER:</span>
+            <span>{formatCurrency(montantTTC)}</span>
+          </div>
+        )}
       </div>
 
       {/* Informations de paiement */}
@@ -275,14 +294,35 @@ const PrintableReceipt: React.FC<PrintableReceiptProps> = ({
             </div>
             <div className="flex justify-between font-bold text-red-600">
               <span>RESTE À PAYER:</span>
-              <span>{formatCurrency(sale.total - sale.totalPaid)}</span>
+              <span>{formatCurrency(montantTTCAvantCredit - sale.totalPaid)}</span>
             </div>
           </>
         ) : (
-          <div className="flex justify-between">
-            <span>Montant payé:</span>
-            <span>{formatCurrency(sale.total)}</span>
-          </div>
+          <>
+            {creditMagasinUtilise > 0 ? (
+              <>
+                <div className="flex justify-between">
+                  <span>Payé en {sale.paymentMethod === 'cash' ? 'espèces' : 'carte'}:</span>
+                  <span>{formatCurrency(montantTTC)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-green-600">
+                  <span>💳 Crédit magasin utilisé:</span>
+                  <span>{formatCurrency(creditMagasinUtilise)}</span>
+                </div>
+                <div className="text-[8px] text-center mt-1 p-1 bg-gray-100 rounded">
+                  <p className="font-bold">DÉTAIL DU PAIEMENT</p>
+                  <p>Total TTC: {formatCurrency(montantTTCAvantCredit)}</p>
+                  <p>Crédit magasin: -{formatCurrency(creditMagasinUtilise)}</p>
+                  <p>Payé: {formatCurrency(montantTTC)}</p>
+                </div>
+              </>
+            ) : (
+              <div className="flex justify-between">
+                <span>Montant payé:</span>
+                <span>{formatCurrency(montantTTC)}</span>
+              </div>
+            )}
+          </>
         )}
       </div>
 

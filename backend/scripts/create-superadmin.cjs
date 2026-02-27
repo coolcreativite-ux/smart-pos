@@ -15,29 +15,41 @@ const pool = new Pool({
 
 async function createSuperAdmin() {
   try {
-    console.log('🔐 Création du SuperAdmin...');
+    console.log('🔐 Création/Mise à jour du SuperAdmin...');
     
     // Hash du mot de passe "admin123"
     const passwordHash = await bcrypt.hash('admin123', 10);
     
-    // Supprimer l'ancien utilisateur s'il existe
-    await pool.query('DELETE FROM users WHERE username = $1', ['admin']);
+    // Vérifier si l'utilisateur existe déjà
+    const existingUser = await pool.query('SELECT id FROM users WHERE username = $1', ['admin']);
     
-    // Créer le nouvel utilisateur SuperAdmin
-    const result = await pool.query(`
-      INSERT INTO users (
-        tenant_id, username, email, first_name, last_name, 
-        password_hash, role
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7) 
-      RETURNING id, username, role
-    `, [1, 'admin', 'admin@smartpos.com', 'Super', 'Admin', passwordHash, 'superadmin']);
+    if (existingUser.rows.length > 0) {
+      // Mettre à jour l'utilisateur existant
+      await pool.query(`
+        UPDATE users 
+        SET password_hash = $1, role = $2, email = $3, first_name = $4, last_name = $5
+        WHERE username = $6
+        RETURNING id, username, role
+      `, [passwordHash, 'superadmin', 'admin@smartpos.com', 'Super', 'Admin', 'admin']);
+      
+      console.log('✅ SuperAdmin mis à jour avec succès!');
+    } else {
+      // Créer le nouvel utilisateur SuperAdmin
+      await pool.query(`
+        INSERT INTO users (
+          tenant_id, username, email, first_name, last_name, 
+          password_hash, role
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7) 
+        RETURNING id, username, role
+      `, [1, 'admin', 'admin@smartpos.com', 'Super', 'Admin', passwordHash, 'superadmin']);
+      
+      console.log('✅ SuperAdmin créé avec succès!');
+    }
     
-    console.log('✅ SuperAdmin créé avec succès!');
     console.log('📋 Détails:');
-    console.log(`   ID: ${result.rows[0].id}`);
-    console.log(`   Username: ${result.rows[0].username}`);
-    console.log(`   Role: ${result.rows[0].role}`);
+    console.log(`   Username: admin`);
     console.log(`   Password: admin123`);
+    console.log(`   Role: superadmin`);
     console.log('');
     console.log('🚀 Vous pouvez maintenant vous connecter à l\'application!');
     

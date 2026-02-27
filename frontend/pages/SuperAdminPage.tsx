@@ -326,6 +326,30 @@ const SuperAdminPage: React.FC = () => {
         }
     };
 
+    const handleResetPassword = async (userId: number, username: string) => {
+        const newPassword = prompt(`Nouveau mot de passe pour ${username}:`, 'admin123');
+        if (!newPassword) return;
+        
+        try {
+            const response = await fetch(`${API_URL}/api/users/${userId}/reset-password`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ newPassword })
+            });
+            
+            if (response.ok) {
+                addToast(`Mot de passe réinitialisé pour ${username}`, 'success');
+                alert(`Nouveau mot de passe: ${newPassword}\n\nCommuniquez-le à l'utilisateur de manière sécurisée.`);
+            } else {
+                const error = await response.json();
+                addToast(error.error || 'Erreur lors de la réinitialisation', 'error');
+            }
+        } catch (error) {
+            console.error('Erreur:', error);
+            addToast('Erreur lors de la réinitialisation du mot de passe', 'error');
+        }
+    };
+
     const togglePermission = (role: UserRole, permKey: keyof Permissions) => {
         setSystemPermissions(prev => ({
             ...prev,
@@ -568,6 +592,13 @@ const SuperAdminPage: React.FC = () => {
                                                     className="text-indigo-600 dark:text-indigo-400 font-bold text-xs uppercase tracking-wider hover:underline"
                                                 >
                                                     {t('edit')}
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleResetPassword(owner.id, owner.username)}
+                                                    className="text-amber-600 dark:text-amber-400 font-bold text-xs uppercase tracking-wider hover:underline"
+                                                    title="Réinitialiser le mot de passe"
+                                                >
+                                                    🔄 Réinitialiser
                                                 </button>
                                                 <button 
                                                     onClick={() => handleDeleteOwner(owner.id)}

@@ -6,6 +6,8 @@ export interface Customer {
   lastName: string;
   email?: string;
   phone?: string;
+  ncc?: string; // Numéro de Compte Contribuable (pour factures B2B)
+  address?: string; // Adresse complète du client
   salesHistoryIds: string[];
   loyaltyPoints: number;
   storeCredit: number;
@@ -249,6 +251,40 @@ export interface Sale {
       originalSaleId: string;
       returnedAmount: number;
     };
+    // Nouveaux champs pour les retours
+    returns?: ReturnTransaction[];
+    hasReturns?: boolean;
+}
+
+export enum ReturnReason {
+  Defective = 'defective',
+  WrongSize = 'wrong_size',
+  WrongColor = 'wrong_color',
+  Unsatisfied = 'unsatisfied',
+  OrderError = 'order_error',
+  Other = 'other'
+}
+
+export interface ReturnTransaction {
+  id: string;
+  saleId: string;
+  timestamp: Date;
+  processedBy: number; // user_id
+  processedByName: string;
+  items: {
+    cartItemId: string;
+    productName: string;
+    variantName: string;
+    quantity: number;
+    unitPrice: number;
+    totalRefund: number;
+  }[];
+  totalRefundAmount: number;
+  refundMethod: 'store_credit' | 'cash' | 'exchange';
+  reason: ReturnReason;
+  notes?: string;
+  approvedBy?: number; // user_id du superviseur si validation requise
+  approvedByName?: string;
 }
 
 export interface Settings {

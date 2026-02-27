@@ -151,8 +151,12 @@ export const SalesHistoryProvider: React.FC<{ children: ReactNode }> = ({ childr
       const createdSale = await response.json();
       console.log('✅ Vente créée dans la DB:', createdSale.id);
 
-      // Mettre à jour le state local
-      saveToGlobal([saleWithTenant, ...allSales]);
+      // Mettre à jour le state local avec l'ID de la DB
+      const saleWithDbId: Sale = {
+        ...saleWithTenant,
+        id: createdSale.id  // Utiliser l'UUID de la DB au lieu de l'ID temporaire
+      };
+      saveToGlobal([saleWithDbId, ...allSales]);
       
       // Log de l'activité de vente
       const totalAmount = sale.total.toFixed(0);
@@ -201,7 +205,7 @@ export const SalesHistoryProvider: React.FC<{ children: ReactNode }> = ({ childr
     }
   }, [allSales, user]);
 
-  const addReturnToSale = useCallback(async (saleId: string, returnedItems: { cartItemId: string; quantity: number }[]) => {
+  const addReturnToSale = useCallback(async (saleId: string, returnedItems: { cartItemId: string; quantity: number }[], returnDetails?: any) => {
     try {
       // Préparer les données pour l'API
       const returned_items = returnedItems.map(item => ({
@@ -209,20 +213,25 @@ export const SalesHistoryProvider: React.FC<{ children: ReactNode }> = ({ childr
         returned_quantity: item.quantity
       }));
 
-      // Envoyer à l'API
+      // Envoyer à l'API avec les détails du retour
       const response = await fetch(`${API_URL}/api/sales/${saleId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ returned_items })
+        body: JSON.stringify({ 
+          returned_items,
+          return_details: returnDetails 
+        })
       });
 
       if (!response.ok) {
         throw new Error('Erreur lors de l\'enregistrement du retour');
       }
 
+      const result = await response.json();
       console.log('✅ Retour enregistré dans la DB');
+      console.log('📊 Nouveaux totaux:', result.updatedTotals);
 
-      // Mettre à jour le state local
+      // Mettre à jour le state local avec les nouveaux totaux
       saveToGlobal(allSales.map(sale => {
         if (sale.id === saleId) {
           const updatedItems = sale.items.map(item => {
@@ -235,7 +244,33 @@ export const SalesHistoryProvider: React.FC<{ children: ReactNode }> = ({ childr
             }
             return item;
           });
-          return { ...sale, items: updatedItems };
+          
+          // Ajouter le retour à l'historique
+          const returns = sale.returns || [];
+          if (returnDetails) {
+            returns.push({
+              id: `return_${Date.now()}`,
+              saleId,
+              timestamp: new Date(),
+              ...returnDetails
+            });
+          }
+          
+          // Mettre à jour les totaux avec les valeurs recalculées par le backend
+          const updatedTotals = result.updatedTotals || {};
+          
+          return { 
+            ...sale, 
+            items: updatedItems,
+            returns,
+            hasReturns: true,
+            // Mettre à jour les totaux si fournis par le backend
+            subtotal: updatedTotals.subtotal ? parseFloat(updatedTotals.subtotal) : sale.subtotal,
+            discount: updatedTotals.discount ? parseFloat(updatedTotals.discount) : sale.discount,
+            loyaltyDiscount: updatedTotals.loyaltyDiscount ? parseFloat(updatedTotals.loyaltyDiscount) : sale.loyaltyDiscount,
+            tax: updatedTotals.tax ? parseFloat(updatedTotals.tax) : sale.tax,
+            total: updatedTotals.total ? parseFloat(updatedTotals.total) : sale.total
+          };
         }
         return sale;
       }));
@@ -254,7 +289,7 @@ export const SalesHistoryProvider: React.FC<{ children: ReactNode }> = ({ childr
             }
             return item;
           });
-          return { ...sale, items: updatedItems };
+          return { ...sale, items: updatedItems, hasReturns: true };
         }
         return sale;
       }));

@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { createInvoicesRouter } from './routes/invoices.routes';
 
 // Charger les variables d'environnement selon l'environnement
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
@@ -19,7 +20,10 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://192.168.8.100:3001'],
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' })); // Augmenter la limite pour les images
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
@@ -288,19 +292,25 @@ app.post('/api/action-logs', async (req, res) => {
 
     // Permettre tenant_id = 0 pour les actions du superadmin
     if (tenant_id === undefined || tenant_id === null || user_id === undefined || user_id === null || !action) {
+      console.error('❌ Données manquantes:', { tenant_id, user_id, action });
       return res.status(400).json({ error: 'Données manquantes' });
     }
+
+    console.log('🔍 Tentative d\'insertion:', { tenant_id, user_id, action, details });
 
     const result = await pool.query(
       'INSERT INTO "action_logs" (tenant_id, user_id, action, details) VALUES ($1, $2, $3, $4) RETURNING *',
       [tenant_id, user_id, action, details]
     );
 
-    console.log('✅ Action log créé');
+    console.log('✅ Action log créé:', result.rows[0]);
     res.status(201).json(result.rows[0]);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Erreur création log:', error);
-    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+    console.error('   Message:', error.message);
+    console.error('   Code:', error.code);
+    console.error('   Detail:', error.detail);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message, code: error.code });
   }
 });
 
@@ -309,9 +319,11 @@ app.get('/api/products', async (req, res) => {
   try {
     console.log('🛍️ Récupération produits...');
     
+    // Récupérer les produits avec variantes ET catégories
     const result = await pool.query(`
       SELECT 
         p.*,
+        c.name as category_name,
         COALESCE(
           json_agg(
             CASE WHEN pv.id IS NOT NULL THEN
@@ -328,13 +340,49 @@ app.get('/api/products', async (req, res) => {
           '[]'::json
         ) as variants
       FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN product_variants pv ON p.id = pv.product_id
-      GROUP BY p.id
+      GROUP BY p.id, c.name
       ORDER BY p.name
     `);
 
-    console.log(`✅ ${result.rows.length} produits récupérés`);
-    res.json(result.rows);
+    // Récupérer l'inventaire pour toutes les variantes
+    const inventoryResult = await pool.query(`
+      SELECT variant_id, store_id, quantity
+      FROM inventory
+    `);
+
+    // Créer un map de l'inventaire par variant_id
+    const inventoryMap = new Map();
+    inventoryResult.rows.forEach(inv => {
+      if (!inventoryMap.has(inv.variant_id)) {
+        inventoryMap.set(inv.variant_id, {});
+      }
+      inventoryMap.get(inv.variant_id)[inv.store_id] = inv.quantity;
+    });
+
+    // Enrichir les produits avec l'inventaire
+    const productsWithInventory = result.rows.map(product => {
+      const variants = product.variants.map(variant => {
+        const quantityByStore = inventoryMap.get(variant.id) || {};
+        const totalStock = Object.values(quantityByStore).reduce((sum: number, qty: any) => sum + (qty || 0), 0);
+        
+        return {
+          ...variant,
+          stock_quantity: totalStock,
+          quantityByStore: quantityByStore
+        };
+      });
+
+      return {
+        ...product,
+        category: product.category_name || 'Autre', // Utiliser le nom de la catégorie
+        variants: variants
+      };
+    });
+
+    console.log(`✅ ${productsWithInventory.length} produits récupérés avec inventaire`);
+    res.json(productsWithInventory);
   } catch (error) {
     console.error('❌ Erreur produits:', error);
     res.status(500).json({ error: 'Erreur serveur', details: error.message });
@@ -363,7 +411,9 @@ app.get('/api/inventory', async (req, res) => {
 
 app.get('/api/categories', async (req, res) => {
   try {
+    console.log('📁 Récupération catégories...');
     const result = await pool.query('SELECT * FROM categories ORDER BY name');
+    console.log(`✅ ${result.rows.length} catégories récupérées`);
     res.json(result.rows);
   } catch (error) {
     console.error('❌ Erreur catégories:', error);
@@ -408,7 +458,7 @@ app.post('/api/products', async (req, res) => {
   try {
     console.log('📦 Création produit:', req.body);
     
-    const { name, category, description, imageUrl, attributes, variants, tenantId, low_stock_threshold, enable_email_alert } = req.body;
+    const { name, category, description, imageUrl, attributes, variants, tenantId, storeId, low_stock_threshold, enable_email_alert } = req.body;
 
     // Trouver ou créer la catégorie
     let categoryId = null;
@@ -440,10 +490,13 @@ app.post('/api/products', async (req, res) => {
     const product = productResult.rows[0];
     console.log('✅ Produit créé:', product.id);
 
-    // Créer les variantes
+    // Créer les variantes et l'inventaire initial
     const createdVariants = [];
+    const activeStoreId = storeId || 1;
+    
     if (variants && variants.length > 0) {
       for (const variant of variants) {
+        // Créer la variante
         const variantResult = await pool.query(
           'INSERT INTO product_variants (product_id, selected_options, price, cost_price, sku, barcode) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
           [
@@ -455,12 +508,58 @@ app.post('/api/products', async (req, res) => {
             variant.barcode || null
           ]
         );
-        createdVariants.push(variantResult.rows[0]);
+        
+        const createdVariant = variantResult.rows[0];
+        
+        // Créer l'entrée d'inventaire initial si stock_quantity est fourni
+        const initialStock = variant.stock_quantity || 0;
+        if (initialStock > 0) {
+          await pool.query(
+            'INSERT INTO inventory (variant_id, store_id, quantity) VALUES ($1, $2, $3) ON CONFLICT (variant_id, store_id) DO UPDATE SET quantity = $3',
+            [createdVariant.id, activeStoreId, initialStock]
+          );
+          console.log(`✅ Inventaire initial créé: ${initialStock} unités pour variante ${createdVariant.id}`);
+        } else {
+          // Créer une entrée avec quantité 0 pour éviter les problèmes
+          await pool.query(
+            'INSERT INTO inventory (variant_id, store_id, quantity) VALUES ($1, $2, $3) ON CONFLICT (variant_id, store_id) DO NOTHING',
+            [createdVariant.id, activeStoreId, 0]
+          );
+        }
+        
+        // Transformer les noms de colonnes snake_case en camelCase pour le frontend
+        createdVariants.push({
+          id: createdVariant.id,
+          selectedOptions: createdVariant.selected_options,
+          price: createdVariant.price,
+          costPrice: createdVariant.cost_price, // Transformer cost_price en costPrice
+          sku: createdVariant.sku,
+          barcode: createdVariant.barcode,
+          stock_quantity: initialStock,
+          quantityByStore: { [activeStoreId]: initialStock }
+        });
       }
     }
 
-    console.log(`✅ ${createdVariants.length} variantes créées`);
-    res.status(201).json({ ...product, variants: createdVariants });
+    console.log(`✅ ${createdVariants.length} variantes créées avec inventaire`);
+    
+    // Récupérer le nom de la catégorie pour la réponse
+    let categoryName = 'Autre';
+    if (categoryId) {
+      const categoryResult = await pool.query(
+        'SELECT name FROM categories WHERE id = $1',
+        [categoryId]
+      );
+      if (categoryResult.rows.length > 0) {
+        categoryName = categoryResult.rows[0].name;
+      }
+    }
+    
+    res.status(201).json({ 
+      ...product, 
+      category: categoryName,
+      variants: createdVariants 
+    });
   } catch (error) {
     console.error('❌ Erreur création produit:', error);
     res.status(500).json({ error: 'Erreur serveur', details: error.message });
@@ -471,7 +570,7 @@ app.post('/api/products', async (req, res) => {
 app.patch('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, category, description, imageUrl, attributes, low_stock_threshold, enable_email_alert, tenantId } = req.body;
+    const { name, category, description, imageUrl, attributes, low_stock_threshold, enable_email_alert, tenantId, variants } = req.body;
     
     console.log('✏️ Mise à jour produit:', id);
 
@@ -515,6 +614,27 @@ app.patch('/api/products/:id', async (req, res) => {
        RETURNING *`,
       [name, categoryId, description, imageUrl, JSON.stringify(attributes), low_stock_threshold, enable_email_alert, id]
     );
+
+    // Mettre à jour les variants si fournis
+    if (variants && Array.isArray(variants)) {
+      console.log('🔄 Mise à jour des variants:', variants.length);
+      
+      for (const variant of variants) {
+        if (variant.id) {
+          // Mettre à jour le variant existant (sans le stock)
+          await pool.query(
+            `UPDATE product_variants 
+             SET price = $1, 
+                 cost_price = $2, 
+                 sku = $3, 
+                 barcode = $4
+             WHERE id = $5 AND product_id = $6`,
+            [variant.price, variant.costPrice || variant.cost_price, variant.sku, variant.barcode, variant.id, id]
+          );
+          console.log('✅ Variant mis à jour:', variant.id);
+        }
+      }
+    }
 
     console.log('✅ Produit mis à jour:', result.rows[0].name);
     res.json(result.rows[0]);
@@ -561,6 +681,8 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
+    console.log('🔐 Tentative de connexion:', username);
+
     // Vérifier que les données sont présentes
     if (!username || !password) {
       return res.status(400).json({ error: 'Nom d\'utilisateur et mot de passe requis' });
@@ -569,10 +691,13 @@ app.post('/api/auth/login', async (req, res) => {
     const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     
     if (result.rows.length === 0) {
+      console.log('❌ Utilisateur non trouvé:', username);
       return res.status(401).json({ error: 'Utilisateur non trouvé' });
     }
 
     const user = result.rows[0];
+    
+    console.log('👤 Utilisateur trouvé:', { id: user.id, username: user.username, has_password_hash: !!user.password_hash });
     
     // Vérifier que le mot de passe hashé existe
     if (!user.password_hash) {
@@ -580,9 +705,12 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Erreur de configuration utilisateur' });
     }
 
+    console.log('🔍 Vérification du mot de passe...');
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    console.log('🔍 Résultat de la vérification:', isValidPassword);
 
     if (!isValidPassword) {
+      console.log('❌ Mot de passe incorrect pour:', username);
       return res.status(401).json({ error: 'Mot de passe incorrect' });
     }
 
@@ -957,6 +1085,116 @@ app.patch('/api/users/:id/password', async (req, res) => {
     res.json({ success: true, message: 'Mot de passe changé avec succès' });
   } catch (error) {
     console.error('❌ Erreur changement mot de passe:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
+// Reset password endpoint (for admins to reset other users' passwords)
+app.post('/api/users/:id/reset-password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { new_password, admin_user_id } = req.body;
+    
+    console.log('🔄 Réinitialisation de mot de passe pour utilisateur:', id, 'par admin:', admin_user_id);
+
+    if (!new_password) {
+      return res.status(400).json({ error: 'Nouveau mot de passe requis' });
+    }
+
+    if (!admin_user_id) {
+      return res.status(400).json({ error: 'ID de l\'administrateur requis' });
+    }
+
+    // Récupérer l'utilisateur cible
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+
+    const targetUser = userResult.rows[0];
+
+    // Récupérer l'administrateur qui fait la réinitialisation
+    const adminResult = await pool.query('SELECT * FROM users WHERE id = $1', [admin_user_id]);
+    
+    if (adminResult.rows.length === 0) {
+      return res.status(404).json({ error: 'admin_not_found' });
+    }
+
+    const adminUser = adminResult.rows[0];
+
+    // Vérifier les permissions
+    // SuperAdmin peut réinitialiser n'importe quel mot de passe
+    // Owner/Admin peuvent réinitialiser les mots de passe de leur tenant (sauf autres owners/admins)
+    if (adminUser.role === 'superadmin') {
+      // SuperAdmin peut tout faire
+      console.log('✅ SuperAdmin autorisé');
+    } else if (adminUser.role === 'owner' || adminUser.role === 'admin') {
+      // Vérifier que l'utilisateur cible est du même tenant
+      if (adminUser.tenant_id !== targetUser.tenant_id) {
+        console.log('❌ Tentative de réinitialisation cross-tenant');
+        return res.status(403).json({ error: 'unauthorized' });
+      }
+      // Ne pas permettre de réinitialiser le mot de passe d'un owner ou admin (sauf soi-même)
+      if ((targetUser.role === 'owner' || targetUser.role === 'admin') && targetUser.id !== adminUser.id) {
+        console.log('❌ Tentative de réinitialisation d\'un owner/admin');
+        return res.status(403).json({ error: 'cannot_reset_admin_password' });
+      }
+      console.log('✅ Owner/Admin autorisé');
+    } else {
+      console.log('❌ Permissions insuffisantes');
+      return res.status(403).json({ error: 'insufficient_permissions' });
+    }
+
+    // Hasher le nouveau mot de passe
+    const new_password_hash = await bcrypt.hash(new_password, 10);
+
+    // Mettre à jour le mot de passe
+    await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
+      [new_password_hash, id]
+    );
+
+    console.log('✅ Mot de passe réinitialisé avec succès pour:', targetUser.username);
+    res.json({ success: true, message: 'Mot de passe réinitialisé avec succès' });
+  } catch (error) {
+    console.error('❌ Erreur réinitialisation mot de passe:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  }
+});
+
+// PATCH endpoint simplifié pour SuperAdmin (sans vérification de permissions)
+app.patch('/api/users/:id/reset-password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+    
+    console.log('🔄 [SuperAdmin] Réinitialisation mot de passe utilisateur:', id);
+
+    if (!newPassword) {
+      return res.status(400).json({ error: 'Nouveau mot de passe requis' });
+    }
+
+    // Vérifier que l'utilisateur existe
+    const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [id]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    // Hasher le nouveau mot de passe
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    // Mettre à jour le mot de passe
+    await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
+      [passwordHash, id]
+    );
+
+    console.log('✅ Mot de passe réinitialisé pour:', userResult.rows[0].username);
+    res.json({ success: true, message: 'Mot de passe réinitialisé avec succès' });
+  } catch (error) {
+    console.error('❌ Erreur réinitialisation mot de passe:', error);
     res.status(500).json({ error: 'Erreur serveur', details: error.message });
   }
 });
@@ -1496,6 +1734,10 @@ app.post('/api/app-settings/upload-logo', async (req, res) => {
   }
 });
 
+// ===== INVOICES ENDPOINTS =====
+// Routes pour le système de facturation FNE (AVANT LA ROUTE GÉNÉRIQUE)
+app.use('/api/invoices', createInvoicesRouter(pool));
+
 // ===== ROUTES GÉNÉRIQUES (APRÈS LES ROUTES SPÉCIFIQUES) =====
 app.get('/api/:table', async (req, res) => {
   try {
@@ -1509,6 +1751,93 @@ app.get('/api/:table', async (req, res) => {
   }
 });
 
+// POST /api/sales - Créer une nouvelle vente (MUST BE BEFORE GENERIC ROUTE)
+app.post('/api/sales', async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    console.log('💰 Création vente:', req.body);
+    
+    const {
+      tenant_id,
+      store_id,
+      user_id,
+      customer_id,
+      subtotal,
+      discount,
+      loyalty_discount,
+      tax,
+      total,
+      promo_code,
+      loyalty_points_earned,
+      loyalty_points_used,
+      payment_method,
+      is_credit,
+      total_paid,
+      item_status,
+      items
+    } = req.body;
+
+    // Démarrer une transaction
+    await client.query('BEGIN');
+
+    // Créer la vente
+    const saleResult = await client.query(
+      `INSERT INTO sales (
+        tenant_id, store_id, user_id, customer_id,
+        subtotal, discount, loyalty_discount, tax, total,
+        promo_code, loyalty_points_earned, loyalty_points_used,
+        payment_method, is_credit, total_paid, item_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      RETURNING *`,
+      [
+        tenant_id, store_id, user_id, customer_id,
+        subtotal, discount, loyalty_discount, tax, total,
+        promo_code, loyalty_points_earned, loyalty_points_used,
+        payment_method, is_credit, total_paid, item_status
+      ]
+    );
+
+    const sale = saleResult.rows[0];
+    console.log('✅ Vente créée:', sale.id);
+
+    // Créer les items de la vente
+    const createdItems = [];
+    for (const item of items) {
+      const itemResult = await client.query(
+        `INSERT INTO sale_items (
+          sale_id, product_id, variant_id, quantity, unit_price, total_price
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *`,
+        [
+          sale.id,
+          item.product_id,
+          item.variant_id,
+          item.quantity,
+          item.unit_price,
+          item.total_price
+        ]
+      );
+      createdItems.push(itemResult.rows[0]);
+    }
+
+    console.log(`✅ ${createdItems.length} items créés`);
+
+    // Commit la transaction
+    await client.query('COMMIT');
+
+    res.status(201).json({ ...sale, items: createdItems });
+  } catch (error) {
+    // Rollback en cas d'erreur
+    await client.query('ROLLBACK');
+    console.error('❌ Erreur création vente:', error);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+/*// Generic POST route for other tables
 app.post('/api/:table', async (req, res) => {
   try {
     const { table } = req.params;
@@ -1528,7 +1857,7 @@ app.post('/api/:table', async (req, res) => {
     console.error(`❌ Erreur création ${req.params.table}:`, error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
-});
+});*/
 
 // ===== SETTINGS ENDPOINTS =====
 // GET /api/settings - Récupérer les paramètres
@@ -1647,6 +1976,42 @@ app.put('/api/settings/:tenantId', async (req, res) => {
   }
 });
 
+// ===== TENANTS ENDPOINTS =====
+// PATCH /api/tenants/:id - Mettre à jour les informations du tenant
+app.patch('/api/tenants/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ncc, address } = req.body;
+
+    console.log(`🏢 Mise à jour tenant ${id}:`, { ncc, address });
+
+    // Vérifier que le tenant existe
+    const tenantCheck = await pool.query(
+      'SELECT id FROM tenants WHERE id = $1',
+      [id]
+    );
+
+    if (tenantCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant non trouvé' });
+    }
+
+    // Mettre à jour les informations
+    const result = await pool.query(
+      `UPDATE tenants 
+       SET ncc = $1, address = $2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3
+       RETURNING *`,
+      [ncc || null, address || null, id]
+    );
+
+    console.log('✅ Tenant mis à jour:', result.rows[0]);
+    res.json({ success: true, tenant: result.rows[0] });
+  } catch (error) {
+    console.error('❌ Erreur mise à jour tenant:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // ===== SALES ENDPOINTS =====
 // GET /api/sales - Récupérer toutes les ventes
 app.get('/api/sales', async (req, res) => {
@@ -1681,112 +2046,168 @@ app.get('/api/sales', async (req, res) => {
   }
 });
 
-// POST /api/sales - Créer une nouvelle vente
-app.post('/api/sales', async (req, res) => {
+// PATCH /api/sales/:id - Mettre à jour une vente (pour les retours)
+app.patch('/api/sales/:id', async (req, res) => {
   const client = await pool.connect();
   
   try {
-    console.log('💰 Création vente:', req.body);
+    const { id } = req.params;
+    const { returned_items, return_details } = req.body;
     
-    const {
-      tenant_id,
-      store_id,
-      user_id,
-      customer_id,
-      subtotal,
-      discount,
-      loyalty_discount,
-      tax,
-      total,
-      promo_code,
-      loyalty_points_earned,
-      loyalty_points_used,
-      payment_method,
-      is_credit,
-      total_paid,
-      item_status,
-      items
-    } = req.body;
+    console.log('🔄 Mise à jour vente (retour):', id);
+    console.log('📦 Items à retourner:', returned_items);
+    console.log('📝 Détails retour:', return_details);
 
-    // Démarrer une transaction
     await client.query('BEGIN');
 
-    // Créer la vente
+    // Mettre à jour les quantités retournées pour chaque item
+    for (const item of returned_items) {
+      // Extraire variant_id du cartItemId (format: "productId-variantId")
+      const variantId = parseInt(item.id.split('-')[1]);
+      
+      const result = await client.query(
+        `UPDATE sale_items 
+         SET returned_quantity = returned_quantity + $1 
+         WHERE sale_id = $2 AND variant_id = $3
+         RETURNING *`,
+        [item.returned_quantity, id, variantId]
+      );
+      
+      if (result.rowCount === 0) {
+        console.warn(`⚠️ Aucun item trouvé pour sale_id=${id}, variant_id=${variantId}`);
+      } else {
+        console.log(`✅ Item mis à jour: variant_id=${variantId}, returned_quantity=${item.returned_quantity}`);
+      }
+    }
+
+    // Recalculer les totaux de la vente après retour
+    const itemsResult = await client.query(
+      `SELECT 
+        quantity, 
+        returned_quantity, 
+        unit_price 
+       FROM sale_items 
+       WHERE sale_id = $1`,
+      [id]
+    );
+
+    // Calculer le nouveau subtotal (seulement les items non retournés)
+    let newSubtotal = 0;
+    for (const item of itemsResult.rows) {
+      const activeQuantity = item.quantity - (item.returned_quantity || 0);
+      newSubtotal += activeQuantity * parseFloat(item.unit_price);
+    }
+
+    // Récupérer les infos de la vente originale pour calculer les proportions
     const saleResult = await client.query(
-      `INSERT INTO sales (
-        tenant_id, store_id, user_id, customer_id,
-        subtotal, discount, loyalty_discount, tax, total,
-        promo_code, loyalty_points_earned, loyalty_points_used,
-        payment_method, is_credit, total_paid, item_status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-      RETURNING *`,
+      'SELECT subtotal, discount, loyalty_discount, tax, total, tenant_id FROM sales WHERE id = $1',
+      [id]
+    );
+
+    if (saleResult.rows.length === 0) {
+      throw new Error('Vente non trouvée');
+    }
+
+    const originalSale = saleResult.rows[0];
+    const originalSubtotal = parseFloat(originalSale.subtotal);
+    const tenantId = originalSale.tenant_id;
+
+    // Calculer les nouveaux montants proportionnellement
+    const ratio = originalSubtotal > 0 ? newSubtotal / originalSubtotal : 0;
+    const newDiscount = parseFloat(originalSale.discount) * ratio;
+    const newLoyaltyDiscount = parseFloat(originalSale.loyalty_discount) * ratio;
+    const newTax = parseFloat(originalSale.tax) * ratio;
+    const newTotal = newSubtotal - newDiscount - newLoyaltyDiscount + newTax;
+
+    // Mettre à jour les totaux de la vente
+    await client.query(
+      `UPDATE sales 
+       SET subtotal = $1, 
+           discount = $2, 
+           loyalty_discount = $3, 
+           tax = $4, 
+           total = $5
+       WHERE id = $6`,
       [
-        tenant_id, store_id, user_id, customer_id,
-        subtotal, discount, loyalty_discount, tax, total,
-        promo_code, loyalty_points_earned, loyalty_points_used,
-        payment_method, is_credit, total_paid, item_status
+        newSubtotal.toFixed(2),
+        newDiscount.toFixed(2),
+        newLoyaltyDiscount.toFixed(2),
+        newTax.toFixed(2),
+        newTotal.toFixed(2),
+        id
       ]
     );
 
-    const sale = saleResult.rows[0];
-    console.log('✅ Vente créée:', sale.id);
+    console.log(`✅ Totaux recalculés: subtotal=${newSubtotal.toFixed(2)}, total=${newTotal.toFixed(2)}`);
 
-    // Créer les items de la vente
-    const createdItems = [];
-    for (const item of items) {
-      const itemResult = await client.query(
-        `INSERT INTO sale_items (
-          sale_id, product_id, variant_id, quantity, unit_price, total_price
-        ) VALUES ($1, $2, $3, $4, $5, $6)
+    // Enregistrer la transaction de retour si les détails sont fournis
+    if (return_details) {
+      await client.query(
+        `INSERT INTO return_transactions (
+          sale_id, tenant_id, processed_by, approved_by, 
+          return_reason, notes, refund_method, 
+          total_refund_amount, items
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *`,
         [
-          sale.id,
-          item.product_id,
-          item.variant_id,
-          item.quantity,
-          item.unit_price,
-          item.total_price
+          id,
+          tenantId,
+          return_details.processedBy,
+          return_details.approvedBy || null,
+          return_details.reason,
+          return_details.notes || null,
+          return_details.refundMethod,
+          return_details.totalRefundAmount,
+          JSON.stringify(return_details.items)
         ]
       );
-      createdItems.push(itemResult.rows[0]);
+      
+      console.log('✅ Transaction de retour enregistrée');
     }
 
-    console.log(`✅ ${createdItems.length} items créés`);
-
-    // Commit la transaction
     await client.query('COMMIT');
-
-    res.status(201).json({ ...sale, items: createdItems });
+    console.log('✅ Vente mise à jour avec nouveaux totaux');
+    res.json({ 
+      success: true, 
+      message: 'Retour enregistré',
+      updatedTotals: {
+        subtotal: newSubtotal.toFixed(2),
+        discount: newDiscount.toFixed(2),
+        loyaltyDiscount: newLoyaltyDiscount.toFixed(2),
+        tax: newTax.toFixed(2),
+        total: newTotal.toFixed(2)
+      }
+    });
   } catch (error) {
-    // Rollback en cas d'erreur
     await client.query('ROLLBACK');
-    console.error('❌ Erreur création vente:', error);
+    console.error('❌ Erreur mise à jour vente:', error);
     res.status(500).json({ error: 'Erreur serveur', details: error.message });
   } finally {
     client.release();
   }
 });
 
-// PATCH /api/sales/:id - Mettre à jour une vente (pour les retours)
-app.patch('/api/sales/:id', async (req, res) => {
+// GET /api/sales/:id/returns - Récupérer les retours d'une vente
+app.get('/api/sales/:id/returns', async (req, res) => {
   try {
     const { id } = req.params;
-    const { returned_items } = req.body;
     
-    console.log('🔄 Mise à jour vente (retour):', id);
-
-    // Mettre à jour les quantités retournées pour chaque item
-    for (const item of returned_items) {
-      await pool.query(
-        'UPDATE sale_items SET returned_quantity = $1 WHERE id = $2',
-        [item.returned_quantity, item.id]
-      );
-    }
-
-    console.log('✅ Vente mise à jour');
-    res.json({ success: true, message: 'Retour enregistré' });
+    const result = await pool.query(
+      `SELECT 
+        rt.*,
+        u1.username as processed_by_name,
+        u2.username as approved_by_name
+       FROM return_transactions rt
+       LEFT JOIN users u1 ON rt.processed_by = u1.id
+       LEFT JOIN users u2 ON rt.approved_by = u2.id
+       WHERE rt.sale_id = $1
+       ORDER BY rt.created_at DESC`,
+      [id]
+    );
+    
+    res.json(result.rows);
   } catch (error) {
-    console.error('❌ Erreur mise à jour vente:', error);
+    console.error('❌ Erreur récupération retours:', error);
     res.status(500).json({ error: 'Erreur serveur', details: error.message });
   }
 });

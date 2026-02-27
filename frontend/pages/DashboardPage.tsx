@@ -19,6 +19,7 @@ import { UserRole } from '../types';
 import CustomerManagementPage from './CustomerManagementPage';
 import StoreManagement from '../components/StoreManagement';
 import DebtManagementPage from './DebtManagementPage';
+import InvoicesPage from './InvoicesPage';
 import { useCart } from '../contexts/CartContext';
 import CashDrawerModal from '../components/CashDrawerModal';
 import { useCashDrawer } from '../contexts/CashDrawerContext';
@@ -26,7 +27,7 @@ import { useStores } from '../contexts/StoreContext';
 import ActivationOverlay from '../components/ActivationOverlay';
 import TenantLicensePage from './TenantLicensePage';
 
-type View = 'pos' | 'analytics' | 'products' | 'customers' | 'history' | 'settings' | 'stores' | 'superadmin' | 'inventory' | 'purchases' | 'suppliers' | 'debts' | 'license';
+type View = 'pos' | 'analytics' | 'products' | 'customers' | 'history' | 'settings' | 'stores' | 'superadmin' | 'inventory' | 'purchases' | 'suppliers' | 'debts' | 'license' | 'invoices';
 
 const DashboardPage: React.FC = () => {
     const { user, isActivated } = useAuth();
@@ -37,6 +38,7 @@ const DashboardPage: React.FC = () => {
     
     const isSuperAdmin = user?.role === UserRole.SuperAdmin;
     const isOwner = user?.role === UserRole.Owner;
+    const isAdmin = user?.role === UserRole.Admin;
     const canSell = user?.role === UserRole.Manager || user?.role === UserRole.Cashier;
     
     // Default view: SuperAdmin -> superadmin, Seller -> pos, Admin/Owner -> analytics
@@ -55,6 +57,7 @@ const DashboardPage: React.FC = () => {
     const canViewHistory = user?.permissions.viewHistory;
     const canViewSettings = user?.permissions.accessSettings;
     const canManageStores = user?.permissions.manageStores;
+    const canManageInvoices = isOwner || isAdmin; // Seuls Owner et Admin peuvent gérer les factures
 
     useEffect(() => {
         if (user?.assignedStoreId && !currentStore) {
@@ -74,6 +77,7 @@ const DashboardPage: React.FC = () => {
     const navItems = [
         { id: 'pos', label: t('posTerminal'), icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" /></svg>, show: canSell },
         { id: 'analytics', label: t('analytics'), icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, show: canViewAnalytics },
+        { id: 'invoices', label: 'Factures', icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>, show: canManageInvoices },
         { id: 'debts', label: t('debts'), icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, show: canViewHistory },
         { id: 'products', label: t('products'), icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>, show: canManageProducts },
         { id: 'inventory', label: t('inventory'), icon: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>, show: canManageProducts },
@@ -133,9 +137,10 @@ const DashboardPage: React.FC = () => {
                     </div>
 
                     <div className="flex-grow overflow-y-auto p-4 md:p-6 pb-24 lg:pb-6 custom-scrollbar">
-                        {!isSuperAdmin && canManageProducts && view !== 'license' && <LowStockAlert />}
+                        {!isSuperAdmin && canManageProducts && view !== 'license' && view !== 'invoices' && <LowStockAlert />}
                         {view === 'pos' && canSell && <ProductGrid />}
                         {view === 'analytics' && canViewAnalytics && <AnalyticsDashboard />}
+                        {view === 'invoices' && canManageInvoices && <InvoicesPage />}
                         {view === 'products' && canManageProducts && <ProductManagement />}
                         {view === 'inventory' && canManageProducts && <InventoryPage />}
                         {view === 'purchases' && canManageProducts && <PurchaseOrderPage />}

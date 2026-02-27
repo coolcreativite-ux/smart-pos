@@ -7,14 +7,16 @@ import { db } from '../lib/database';
 import { API_URL } from '../config';
 
 type PasswordChangeResult = 'success' | 'incorrect_password' | 'user_not_found';
+type PasswordResetResult = 'success' | 'user_not_found' | 'admin_not_found' | 'unauthorized' | 'cannot_reset_admin_password' | 'insufficient_permissions';
 type AddUserResult = 'success' | 'username_exists' | 'email_exists';
 
 interface UserContextType {
   users: User[];
   addUser: (userData: Omit<User, 'id'>, creatorTenantId?: number) => Promise<AddUserResult>;
-  updateUser: (user: User) => Promise<'success' | 'email_exists'>;
-  deleteUser: (userId: number) => Promise<void>;
+  updateUser: (user: User, currentUserId?: number) => Promise<'success' | 'email_exists'>;
+  deleteUser: (userId: number, currentUserId?: number) => Promise<void>;
   changePassword: (userId: number, oldPass: string, newPass: string) => Promise<PasswordChangeResult>;
+  resetPassword: (userId: number, newPassword: string, adminUserId: number) => Promise<PasswordResetResult>;
   loadUsers: () => Promise<void>;
 }
 
@@ -151,7 +153,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return 'success';
   }, [users, logAction]);
 
-  const updateUser = useCallback(async (updatedUser: User): Promise<'success' | 'email_exists'> => {
+  const updateUser = useCallback(async (updatedUser: User, currentUserId?: number): Promise<'success' | 'email_exists'> => {
     const trimmedEmail = updatedUser.email?.trim().toLowerCase();
 
     if (trimmedEmail && users.some(u => u.id !== updatedUser.id && u.email?.toLowerCase() === trimmedEmail)) {
@@ -195,11 +197,15 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUsers(newUsers);
     localStorage.setItem('posUsers', JSON.stringify(newUsers));
     
-    await logAction(0, 'Admin', 'Update User', `Updated user: ${updatedUser.username}`, updatedUser.tenantId);
+    // Utiliser l'ID de l'utilisateur actuel ou celui qui est mis à jour comme fallback
+    const actorId = currentUserId || updatedUser.id;
+    const actorName = users.find(u => u.id === actorId)?.username || 'System';
+    
+    await logAction(actorId, actorName, 'Mise à jour utilisateur', `Utilisateur mis à jour : ${updatedUser.username}`, updatedUser.tenantId);
     return 'success';
   }, [users, logAction]);
   
-  const deleteUser = useCallback(async (userId: number): Promise<void> => {
+  const deleteUser = useCallback(async (userId: number, currentUserId?: number): Promise<void> => {
     const userToDelete = users.find(u => u.id === userId);
     
     // Supprimer dans la base de données via l'API
@@ -225,16 +231,27 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('posUsers', JSON.stringify(newUsers));
     
     if (userToDelete) {
-        await logAction(0, 'Admin', 'Delete User', `Deleted user: ${userToDelete.username}`, userToDelete.tenantId);
+        // Utiliser l'ID de l'utilisateur actuel ou un ID valide comme fallback
+        const actorId = currentUserId || userToDelete.id;
+        const actorName = users.find(u => u.id === actorId)?.username || 'System';
+        
+        await logAction(actorId, actorName, 'Delete User', `Deleted user: ${userToDelete.username}`, userToDelete.tenantId);
     }
   }, [users, logAction]);
 
   const changePassword = useCallback(async (userId: number, oldPass: string, newPass: string): Promise<PasswordChangeResult> => {
+    console.log('🔐 [Frontend] Changement de mot de passe demandé:', { userId, oldPassLength: oldPass.length, newPassLength: newPass.length });
+    
     const user = users.find(u => u.id === userId);
-    if (!user) return 'user_not_found';
+    if (!user) {
+      console.log('❌ [Frontend] Utilisateur non trouvé:', userId);
+      return 'user_not_found';
+    }
 
     // Changer le mot de passe via l'API
     try {
+      console.log('📡 [Frontend] Envoi requête changement mot de passe à:', `${API_URL}/api/users/${userId}/password`);
+      
       const response = await fetch(`${API_URL}/api/users/${userId}/password`, {
         method: 'PATCH',
         headers: {
@@ -246,11 +263,14 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }),
       });
 
+      console.log('📥 [Frontend] Réponse reçue:', { status: response.status, ok: response.ok });
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.log('❌ [Frontend] Erreur du serveur:', errorData);
         
         if (errorData.error === 'incorrect_password') {
-          await logAction(userId, user.username, 'Password Change Failed', 'Incorrect old password', user.tenantId);
+          await logAction(userId, user.username, 'Échec changement mot de passe', 'Ancien mot de passe incorrect', user.tenantId);
           return 'incorrect_password';
         }
         
@@ -261,24 +281,86 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw new Error('Erreur lors du changement de mot de passe');
       }
 
-      console.log('✅ Mot de passe changé dans la base de données');
+      console.log('✅ [Frontend] Mot de passe changé dans la base de données');
       
-      // Mettre à jour le mot de passe localement (pour la compatibilité)
-      const updatedUser = { ...user, password: newPass };
-      const newUsers = users.map(u => (u.id === userId ? updatedUser : u));
-      setUsers(newUsers);
-      localStorage.setItem('posUsers', JSON.stringify(newUsers));
+      // NE PAS mettre à jour le mot de passe localement - utiliser uniquement la DB
+      // Le localStorage ne devrait plus contenir de mots de passe
       
-      await logAction(userId, user.username, 'Password Change', 'Password updated successfully', user.tenantId);
+      await logAction(userId, user.username, 'Changement de mot de passe', 'Mot de passe mis à jour avec succès', user.tenantId);
       return 'success';
     } catch (error) {
-      console.error('❌ Erreur API lors du changement de mot de passe:', error);
+      console.error('❌ [Frontend] Erreur API lors du changement de mot de passe:', error);
+      throw error;
+    }
+  }, [users, logAction]);
+
+  const resetPassword = useCallback(async (userId: number, newPassword: string, adminUserId: number): Promise<PasswordResetResult> => {
+    console.log('🔄 [Frontend] Réinitialisation de mot de passe demandée:', { userId, adminUserId, newPasswordLength: newPassword.length });
+    
+    const user = users.find(u => u.id === userId);
+    if (!user) {
+      console.log('❌ [Frontend] Utilisateur non trouvé:', userId);
+      return 'user_not_found';
+    }
+
+    const adminUser = users.find(u => u.id === adminUserId);
+    if (!adminUser) {
+      console.log('❌ [Frontend] Admin non trouvé:', adminUserId);
+      return 'admin_not_found';
+    }
+
+    // Réinitialiser le mot de passe via l'API
+    try {
+      console.log('📡 [Frontend] Envoi requête réinitialisation mot de passe à:', `${API_URL}/api/users/${userId}/reset-password`);
+      
+      const response = await fetch(`${API_URL}/api/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          new_password: newPassword,
+          admin_user_id: adminUserId
+        }),
+      });
+
+      console.log('📥 [Frontend] Réponse reçue:', { status: response.status, ok: response.ok });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.log('❌ [Frontend] Erreur du serveur:', errorData);
+        
+        if (errorData.error === 'user_not_found') {
+          return 'user_not_found';
+        }
+        if (errorData.error === 'admin_not_found') {
+          return 'admin_not_found';
+        }
+        if (errorData.error === 'unauthorized') {
+          return 'unauthorized';
+        }
+        if (errorData.error === 'cannot_reset_admin_password') {
+          return 'cannot_reset_admin_password';
+        }
+        if (errorData.error === 'insufficient_permissions') {
+          return 'insufficient_permissions';
+        }
+        
+        throw new Error('Erreur lors de la réinitialisation du mot de passe');
+      }
+
+      console.log('✅ [Frontend] Mot de passe réinitialisé dans la base de données');
+      
+      await logAction(adminUserId, adminUser.username, 'Réinitialisation mot de passe', `Mot de passe réinitialisé pour : ${user.username}`, user.tenantId);
+      return 'success';
+    } catch (error) {
+      console.error('❌ [Frontend] Erreur API lors de la réinitialisation du mot de passe:', error);
       throw error;
     }
   }, [users, logAction]);
 
   return (
-    <UserContext.Provider value={{ users, addUser, updateUser, deleteUser, changePassword, loadUsers }}>
+    <UserContext.Provider value={{ users, addUser, updateUser, deleteUser, changePassword, resetPassword, loadUsers }}>
       {children}
     </UserContext.Provider>
   );

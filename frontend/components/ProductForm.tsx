@@ -108,8 +108,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ productToEdit, onSave, onCanc
   
   const createEmptyVariant = (options: { [key: string]: string } = {}): Omit<ProductVariant, 'id'> => ({
     selectedOptions: options,
-    price: 0,
-    costPrice: 0,
+    price: undefined as any, // Pas de valeur par défaut pour faciliter la saisie
+    costPrice: undefined as any, // Pas de valeur par défaut pour faciliter la saisie
     stock_quantity: 0,
     sku: '',
     barcode: '',
@@ -559,23 +559,58 @@ const ProductForm: React.FC<ProductFormProps> = ({ productToEdit, onSave, onCanc
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                               <div>
                                 <label htmlFor={`variant-costPrice-${variantId}`} className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('costPrice')}</label>
-                                <input type="number" id={`variant-costPrice-${variantId}`} name="costPrice" value={(variant as any).costPrice} onChange={e => handleVariantChange(index, e)} required step="0.01" className="w-full px-3 py-2 text-sm rounded-md border bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                                <input 
+                                  type="number" 
+                                  id={`variant-costPrice-${variantId}`} 
+                                  name="costPrice" 
+                                  value={(variant as any).costPrice ?? ''} 
+                                  onChange={e => handleVariantChange(index, e)} 
+                                  step="0.01" 
+                                  placeholder="0.00" 
+                                  className="w-full px-3 py-2 text-sm rounded-md border bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                                />
                               </div>
                               <div>
                                 <label htmlFor={`variant-price-${variantId}`} className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('price')}</label>
-                                <input type="number" id={`variant-price-${variantId}`} name="price" value={variant.price} onChange={e => handleVariantChange(index, e)} required step="0.01" className={`w-full px-3 py-2 text-sm rounded-md border bg-white dark:bg-slate-700 ${priceError ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} focus:outline-none focus:ring-2 focus:ring-indigo-500`} />
+                                <input 
+                                  type="number" 
+                                  id={`variant-price-${variantId}`} 
+                                  name="price" 
+                                  value={variant.price ?? ''} 
+                                  onChange={e => handleVariantChange(index, e)} 
+                                  step="0.01" 
+                                  placeholder="0.00" 
+                                  className={`w-full px-3 py-2 text-sm rounded-md border bg-white dark:bg-slate-700 ${priceError ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} focus:outline-none focus:ring-2 focus:ring-indigo-500`} 
+                                />
                                 {priceError && <p className="text-xs text-red-500 mt-1">{priceError}</p>}
                               </div>
                               <div>
                                 <label htmlFor={`variant-stock-${variantId}`} className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{t('stockQuantity')}</label>
                                 <div className="flex gap-2 items-center">
-                                    <input type="number" id={`variant-stock-${variantId}`} name="stock_quantity" value={variant.stock_quantity} onChange={e => handleVariantChange(index, e)} required step="1" className={`w-full px-3 py-2 text-sm rounded-md border bg-white dark:bg-slate-700 ${stockError ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} focus:outline-none focus:ring-2 focus:ring-indigo-500`} />
+                                    <input 
+                                      type="number" 
+                                      id={`variant-stock-${variantId}`} 
+                                      name="stock_quantity" 
+                                      value={variant.stock_quantity} 
+                                      disabled={'id' in variant}
+                                      onChange={e => handleVariantChange(index, e)} 
+                                      required 
+                                      step="1" 
+                                      className={`w-full px-3 py-2 text-sm rounded-md border ${
+                                        'id' in variant 
+                                          ? 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed' 
+                                          : 'bg-white dark:bg-slate-700'
+                                      } ${stockError ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} focus:outline-none focus:ring-2 focus:ring-indigo-500`} 
+                                    />
                                      {'id' in variant && (
                                         <button type="button" onClick={() => setHistoryVariant(variant as ProductVariant)} className="p-2 text-slate-500 bg-slate-100 dark:bg-slate-600 rounded-md hover:bg-slate-200 dark:hover:bg-slate-500 border border-slate-300 dark:border-slate-600" title={t('stockHistory')} >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /> </svg>
                                         </button>
                                     )}
                                 </div>
+                                {'id' in variant && (
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Utilisez "Réapprovisionner" pour modifier le stock</p>
+                                )}
                                 {stockError && <p className="text-xs text-red-500 mt-1">{stockError}</p>}
                               </div>
                           </div>

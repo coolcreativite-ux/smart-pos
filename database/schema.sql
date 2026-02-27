@@ -213,6 +213,21 @@ CREATE TABLE sale_items (
     total_price DECIMAL(10,2) NOT NULL
 );
 
+-- Return transactions table (for tracking returns)
+CREATE TABLE return_transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sale_id UUID NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+    tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+    processed_by INTEGER NOT NULL REFERENCES users(id),
+    approved_by INTEGER REFERENCES users(id),
+    return_reason VARCHAR(50) CHECK (return_reason IN ('defective', 'wrong_size', 'wrong_color', 'unsatisfied', 'order_error', 'other')) NOT NULL,
+    notes TEXT,
+    refund_method VARCHAR(20) CHECK (refund_method IN ('store_credit', 'cash', 'exchange')) NOT NULL,
+    total_refund_amount DECIMAL(10,2) NOT NULL,
+    items JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Installments table (for credit sales)
 CREATE TABLE installments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

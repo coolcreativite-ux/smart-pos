@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Prix d'Achat - Frontend</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1e293b;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        .test-section h2 {
+            color: #1e293b;
+            margin-top: 0;
+            font-size: 18px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .product-list {
+            margin-top: 20px;
+        }
+        .product-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .product-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .product-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 16px;
+        }
+        .product-category {
+            color: #64748b;
+            font-size: 14px;
+        }
+        .variant-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 6px;
+        }
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .info-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .info-value.highlight {
+            color: #3b82f6;
+        }
+        .info-value.error {
+            color: #dc2626;
+        }
+        .info-value.success {
+            color: #059669;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button.secondary {
+            background: #64748b;
+        }
+        button.secondary:hover {
+            background: #475569;
+        }
+        .log {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin-bottom: 4px;
+        }
+        .log-entry.success { color: #86efac; }
+        .log-entry.error { color: #fca5a5; }
+        .log-entry.info { color: #93c5fd; }
+        .check-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin: 4px 0;
+        }
+        .check-icon {
+            margin-right: 8px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Prix d'Achat (costPrice) - Frontend</h1>
+        <p class="subtitle">Vérification de l'affichage du prix d'achat dans l'interface de modification de produit</p>
+
+        <div class="test-section">
+            <h2>📋 Étape 1: Récupération des produits <span class="status pending" id="status-1">En attente</span></h2>
+            <button onclick="loadProducts()">Charger les produits</button>
+            <button class="secondary" onclick="createTestProduct()">Créer un produit de test</button>
+            <div class="product-list" id="product-list"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>✅ Résultats des vérifications <span class="status pending" id="status-2">En attente</span></h2>
+            <div id="checks"></div>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+        let products = [];
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(id, status) {
+            const statusEl = document.getElementById(id);
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = status === 'success' ? 'Réussi' : status === 'error' ? 'Erreur' : 'En cours...';
+        }
+
+        async function loadProducts() {
+            log('Chargement des produits depuis l\'API...', 'info');
+            updateStatus('status-1', 'pending');
+
+            try {
+                const response = await fetch(`${API_URL}/api/products`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                products = await response.json();
+                log(`✅ ${products.length} produits chargés`, 'success');
+                updateStatus('status-1', 'success');
+
+                displayProducts();
+                runChecks();
+            } catch (error) {
+                log(`❌ Erreur: ${error.message}`, 'error');
+                updateStatus('status-1', 'error');
+            }
+        }
+
+        function displayProducts() {
+            const listDiv = document.getElementById('product-list');
+            listDiv.innerHTML = '';
+
+            if (products.length === 0) {
+                listDiv.innerHTML = '<p style="color: #64748b; margin-top: 12px;">Aucun produit trouvé. Créez un produit de test.</p>';
+                return;
+            }
+
+            products.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+
+                const header = document.createElement('div');
+                header.className = 'product-header';
+                header.innerHTML = `
+                    <div>
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-category">Catégorie: ${product.category || 'Autre'}</div>
+                    </div>
+                `;
+
+                card.appendChild(header);
+
+                if (product.variants && product.variants.length > 0) {
+                    product.variants.forEach((variant, idx) => {
+                        const variantDiv = document.createElement('div');
+                        variantDiv.className = 'variant-info';
+
+                        const hasCostPrice = variant.hasOwnProperty('costPrice');
+                        const hasSnakeCaseCostPrice = variant.hasOwnProperty('cost_price');
+                        const costPriceValue = variant.costPrice || variant.cost_price || 0;
+
+                        variantDiv.innerHTML = `
+                            <div class="info-item">
+                                <div class="info-label">Prix de vente</div>
+                                <div class="info-value">${variant.price || 0} €</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Prix d'achat (costPrice)</div>
+                                <div class="info-value ${hasCostPrice ? (costPriceValue > 0 ? 'success' : 'error') : 'error'}">
+                                    ${costPriceValue} €
+                                    ${!hasCostPrice ? ' ⚠️ Propriété manquante' : ''}
+                                    ${hasSnakeCaseCostPrice ? ' ⚠️ Format snake_case' : ''}
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Stock</div>
+                                <div class="info-value">${variant.stock_quantity || 0}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">SKU</div>
+                                <div class="info-value">${variant.sku || 'N/A'}</div>
+                            </div>
+                        `;
+
+                        card.appendChild(variantDiv);
+                    });
+                }
+
+                listDiv.appendChild(card);
+            });
+        }
+
+        function runChecks() {
+            const checksDiv = document.getElementById('checks');
+            checksDiv.innerHTML = '';
+
+            const checks = [];
+
+            // Check 1: Au moins un produit existe
+            checks.push({
+                label: 'Au moins un produit existe',
+                passed: products.length > 0,
+                details: `${products.length} produit(s) trouvé(s)`
+            });
+
+            // Check 2: Tous les produits ont des variantes
+            const productsWithVariants = products.filter(p => p.variants && p.variants.length > 0);
+            checks.push({
+                label: 'Tous les produits ont des variantes',
+                passed: productsWithVariants.length === products.length,
+                details: `${productsWithVariants.length}/${products.length} produits avec variantes`
+            });
+
+            // Check 3: Toutes les variantes ont costPrice en camelCase
+            let totalVariants = 0;
+            let variantsWithCostPrice = 0;
+            let variantsWithSnakeCaseCostPrice = 0;
+
+            products.forEach(p => {
+                if (p.variants) {
+                    p.variants.forEach(v => {
+                        totalVariants++;
+                        if (v.hasOwnProperty('costPrice')) variantsWithCostPrice++;
+                        if (v.hasOwnProperty('cost_price')) variantsWithSnakeCaseCostPrice++;
+                    });
+                }
+            });
+
+            checks.push({
+                label: 'Toutes les variantes ont "costPrice" (camelCase)',
+                passed: variantsWithCostPrice === totalVariants && totalVariants > 0,
+                details: `${variantsWithCostPrice}/${totalVariants} variantes avec costPrice`
+            });
+
+            checks.push({
+                label: 'Aucune variante n\'a "cost_price" (snake_case)',
+                passed: variantsWithSnakeCaseCostPrice === 0,
+                details: variantsWithSnakeCaseCostPrice === 0 ? 'Aucune variante avec snake_case' : `${variantsWithSnakeCaseCostPrice} variantes avec snake_case`
+            });
+
+            // Check 4: Les valeurs de costPrice sont valides (> 0)
+            let variantsWithValidCostPrice = 0;
+            products.forEach(p => {
+                if (p.variants) {
+                    p.variants.forEach(v => {
+                        if (v.costPrice && v.costPrice > 0) variantsWithValidCostPrice++;
+                    });
+                }
+            });
+
+            checks.push({
+                label: 'Les prix d\'achat ont des valeurs valides (> 0)',
+                passed: variantsWithValidCostPrice > 0,
+                details: `${variantsWithValidCostPrice}/${totalVariants} variantes avec costPrice > 0`
+            });
+
+            // Afficher les résultats
+            checks.forEach(check => {
+                const checkDiv = document.createElement('div');
+                checkDiv.className = 'check-item';
+                checkDiv.innerHTML = `
+                    <span class="check-icon">${check.passed ? '✅' : '❌'}</span>
+                    <div>
+                        <strong>${check.label}</strong><br>
+                        <small style="color: #64748b;">${check.details}</small>
+                    </div>
+                `;
+                checksDiv.appendChild(checkDiv);
+
+                log(`${check.passed ? '✅' : '❌'} ${check.label}: ${check.details}`, check.passed ? 'success' : 'error');
+            });
+
+            const allPassed = checks.every(c => c.passed);
+            updateStatus('status-2', allPassed ? 'success' : 'error');
+
+            if (allPassed) {
+                log('🎉 TOUS LES TESTS SONT RÉUSSIS!', 'success');
+            } else {
+                log('⚠️ Certains tests ont échoué', 'error');
+            }
+        }
+
+        async function createTestProduct() {
+            log('Création d\'un produit de test...', 'info');
+
+            const testProduct = {
+                name: 'Test Frontend ' + Date.now(),
+                category: 'Test',
+                description: 'Produit de test pour vérifier l\'affichage du costPrice',
+                imageUrl: '',
+                attributes: [],
+                variants: [{
+                    selectedOptions: {},
+                    price: 199.99,
+                    costPrice: 125.50,
+                    sku: 'TEST-' + Date.now(),
+                    barcode: null,
+                    stock_quantity: 50
+                }],
+                tenantId: 1,
+                storeId: 1,
+                low_stock_threshold: 10,
+                enable_email_alert: false
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/api/products`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testProduct)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const created = await response.json();
+                log(`✅ Produit créé: ${created.name} (ID: ${created.id})`, 'success');
+                log(`   Prix de vente: ${created.variants[0].price} €`, 'info');
+                log(`   Prix d'achat: ${created.variants[0].costPrice} €`, 'info');
+
+                // Recharger les produits
+                await loadProducts();
+            } catch (error) {
+                log(`❌ Erreur lors de la création: ${error.message}`, 'error');
+            }
+        }
+
+        // Charger automatiquement au démarrage
+        window.addEventListener('load', () => {
+            log('🚀 Test démarré', 'info');
+            log('Backend API: ' + API_URL, 'info');
+            loadProducts();
+        });
+    </script>
+</body>
+</html>

@@ -96,13 +96,14 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
     e.preventDefault();
     setError('');
 
-    if (!sendInvite) {
-        if (formData.password !== formData.confirmPassword) {
-            setError(t('passwordsDoNotMatch'));
+    // Validation du mot de passe uniquement pour les nouveaux utilisateurs
+    if (!isEditing && !sendInvite) {
+        if (!formData.password) {
+            setError("Le mot de passe est obligatoire.");
             return;
         }
-        if (!isEditing && !formData.password) {
-            setError("Le mot de passe est obligatoire.");
+        if (formData.password !== formData.confirmPassword) {
+            setError(t('passwordsDoNotMatch'));
             return;
         }
     }
@@ -149,10 +150,12 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
             assignedStoreId: finalStoreId,
         };
         if (isEditing && userToEdit) {
+            // En mode édition, ne jamais inclure le mot de passe
+            // Utiliser le bouton 🔑 "Réinitialiser" pour changer le mot de passe
             const updatedUser: User = { ...userToEdit, ...userData };
-            if (formData.password) updatedUser.password = formData.password;
             onSave(updatedUser);
         } else {
+            // Nouveau utilisateur : mot de passe obligatoire
             onSave({ ...userData, password: formData.password } as Omit<User, 'id'>);
         }
         onClose();
@@ -299,7 +302,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
                   {isEditing ? t('editUser') : (forcedRole === UserRole.Owner ? t('addOwner') : t('addUser'))}
                 </h2>
                 <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-2">
-                   {isEditing ? "Modification des accès" : (forcedRole === UserRole.Owner ? "Nouveau Propriétaire Business" : "Création d'un nouveau profil")}
+                   {isEditing ? t('modificationAccess') : (forcedRole === UserRole.Owner ? "Nouveau Propriétaire Business" : "Création d'un nouveau profil")}
                 </p>
               </div>
               <button onClick={onClose} className="p-2 text-slate-400 hover:text-rose-500 rounded-xl transition-colors">
@@ -319,12 +322,10 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
                 </div>
               </div>
               
-              {isSuperAdmin && (
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">{t('email')}</label>
-                  <input type="email" name="email" value={formData.email} onChange={handleChange} required={sendInvite} className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl outline-none font-bold text-sm focus:ring-2 focus:ring-indigo-500 transition-all" />
-                </div>
-              )}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">{t('email')}</label>
+                <input type="email" name="email" value={formData.email} onChange={handleChange} required={sendInvite} className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl outline-none font-bold text-sm focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="utilisateur@exemple.com" />
+              </div>
 
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-slate-400 ml-1">{t('username')}</label>
@@ -384,16 +385,24 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ userToEdit, onClose, onSave
                   </div>
                 )}
 
-                {!sendInvite && (
+                {!sendInvite && !isEditing && (
                   <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400 ml-1">{isEditing ? "Nouveau MDP" : t('password')}</label>
-                          <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl font-bold text-sm" placeholder="••••••••" />
+                          <label className="text-[10px] font-black uppercase text-slate-400 ml-1">{t('password')}</label>
+                          <input type="password" name="password" value={formData.password} onChange={handleChange} required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl font-bold text-sm" placeholder="••••••••" />
                       </div>
                       <div className="space-y-1">
                           <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Confirmation</label>
-                          <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl font-bold text-sm" placeholder="••••••••" />
+                          <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl font-bold text-sm" placeholder="••••••••" />
                       </div>
+                  </div>
+                )}
+
+                {isEditing && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                      {t('useResetButton')}
+                    </p>
                   </div>
                 )}
               </div>

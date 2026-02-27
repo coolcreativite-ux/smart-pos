@@ -21,6 +21,7 @@ const RestockModal: React.FC<RestockModalProps> = ({ product, onClose, targetSto
 
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
+  const [operation, setOperation] = useState<'add' | 'remove'>('add');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -44,17 +45,21 @@ const RestockModal: React.FC<RestockModalProps> = ({ product, onClose, targetSto
     setIsSaving(true);
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate async operation
 
+    const finalQuantity = operation === 'add' ? quantityValue : -quantityValue;
+    const reason = operation === 'add' ? StockChangeReason.Restock : StockChangeReason.Adjustment;
+
     updateVariantStock(
         product.id, 
         selectedVariantId, 
-        quantityValue, 
-        StockChangeReason.Restock, 
+        finalQuantity, 
+        reason, 
         user, 
         notes,
         targetStoreId // Utilise le magasin spécifié
     );
     
-    addToast(t('productRestockedSuccess'), 'success');
+    const message = operation === 'add' ? t('productRestockedSuccess') : 'Stock diminué avec succès';
+    addToast(message, 'success');
     setIsSaving(false);
     onClose();
   };
@@ -70,6 +75,34 @@ const RestockModal: React.FC<RestockModalProps> = ({ product, onClose, targetSto
         </h2>
         <p className="text-indigo-600 dark:text-indigo-400 mb-6">{product.name}</p>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Opération</label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setOperation('add')}
+                className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all ${
+                  operation === 'add'
+                    ? 'bg-emerald-600 text-white shadow-lg'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                }`}
+              >
+                ➕ Ajouter
+              </button>
+              <button
+                type="button"
+                onClick={() => setOperation('remove')}
+                className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all ${
+                  operation === 'remove'
+                    ? 'bg-rose-600 text-white shadow-lg'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                }`}
+              >
+                ➖ Retirer
+              </button>
+            </div>
+          </div>
+
           <div>
             <label htmlFor="variant" className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t('selectVariant')}</label>
             <select
@@ -89,7 +122,9 @@ const RestockModal: React.FC<RestockModalProps> = ({ product, onClose, targetSto
           </div>
 
           <div>
-            <label htmlFor="quantity" className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t('quantityToAdd')}</label>
+            <label htmlFor="quantity" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+              {operation === 'add' ? t('quantityToAdd') : 'Quantité à retirer'}
+            </label>
             <input
               type="number"
               id="quantity"

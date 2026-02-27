@@ -24,9 +24,59 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     confirmPassword: '',
   });
 
+  // État pour les informations entreprise
+  const [companyData, setCompanyData] = useState({
+    ncc: currentUser?.tenant?.ncc || '',
+    address: currentUser?.tenant?.address || '',
+  });
+  const [isUpdatingCompany, setIsUpdatingCompany] = useState(false);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setPasswordData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCompanyInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setCompanyData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleUpdateCompanyInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser || isUpdatingCompany) return;
+
+    setIsUpdatingCompany(true);
+
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE_URL}/api/tenants/${currentUser.tenantId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': currentUser.tenantId.toString(),
+          'x-user-id': currentUser.id.toString(),
+        },
+        body: JSON.stringify({
+          ncc: companyData.ncc.trim() || null,
+          address: companyData.address.trim() || null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la mise à jour');
+      }
+
+      addToast('Informations entreprise mises à jour', 'success');
+      
+      // Recharger la page pour mettre à jour le contexte utilisateur
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error: any) {
+      addToast(error.message || 'Erreur lors de la mise à jour', 'error');
+    } finally {
+      setIsUpdatingCompany(false);
+    }
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
@@ -75,6 +125,65 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         </div>
         
         <div className="space-y-6">
+            {/* Section Informations Entreprise */}
+            <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4 border border-indigo-200 dark:border-indigo-800">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+                <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                Informations Entreprise
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">
+                Ces informations apparaîtront sur vos factures et reçus professionnels
+              </p>
+              <form onSubmit={handleUpdateCompanyInfo} className="space-y-4">
+                <div>
+                  <label htmlFor="ncc" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    NCC (Numéro de Compte Contribuable)
+                  </label>
+                  <input
+                    type="text"
+                    name="ncc"
+                    id="ncc"
+                    value={companyData.ncc}
+                    onChange={handleCompanyInputChange}
+                    placeholder="Ex: CI-ABJ-2024-A-12345"
+                    className="w-full px-3 py-2 text-slate-900 dark:text-white bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                    Requis pour la facturation B2B
+                  </p>
+                </div>
+                <div>
+                  <label htmlFor="address" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Adresse complète
+                  </label>
+                  <textarea
+                    name="address"
+                    id="address"
+                    value={companyData.address}
+                    onChange={handleCompanyInputChange}
+                    placeholder="Ex: Abidjan, Cocody, Riviera Palmeraie"
+                    rows={2}
+                    className="w-full px-3 py-2 text-slate-900 dark:text-white bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                    Apparaîtra sur tous vos documents
+                  </p>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isUpdatingCompany}
+                    className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-slate-400 dark:disabled:bg-slate-500 flex items-center justify-center min-w-[150px]"
+                  >
+                    {isUpdatingCompany && <Spinner size="sm" className="mr-2" />}
+                    Enregistrer
+                  </button>
+                </div>
+              </form>
+            </div>
+
             <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{t('theme')}</label>
                 <div className="flex rounded-md shadow-sm">

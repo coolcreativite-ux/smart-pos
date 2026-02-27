@@ -50,11 +50,11 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
         const dbProducts: Product[] = productsData.map((dbProduct: any) => {
           const variants: ProductVariant[] = (dbProduct.variants || []).map((dbVariant: any) => ({
             id: dbVariant.id,
-            selectedOptions: dbVariant.selectedoptions || dbVariant.selected_options || {},
+            selectedOptions: dbVariant.selectedoptions || dbVariant.selected_options || dbVariant.selectedOptions || {},
             price: parseFloat(dbVariant.price),
-            costPrice: parseFloat(dbVariant.costprice || dbVariant.cost_price || 0),
-            stock_quantity: 0, // Sera calculé depuis quantityByStore
-            quantityByStore: {}, // TODO: Charger depuis inventory
+            costPrice: parseFloat(dbVariant.costPrice || dbVariant.cost_price || dbVariant.costprice || 0),
+            stock_quantity: dbVariant.stock_quantity || 0,
+            quantityByStore: dbVariant.quantitybystore || dbVariant.quantityByStore || {},
             sku: dbVariant.sku,
             barcode: dbVariant.barcode,
             stock_history: []
@@ -112,19 +112,35 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
 
       const data = await response.json();
-      const categoryNames = data.map((c: any) => c.name);
+      
+      // Filtrer par tenant si l'utilisateur n'est pas SuperAdmin
+      let filteredData = data;
+      if (user && user.role !== UserRole.SuperAdmin) {
+        filteredData = data.filter((c: any) => c.tenant_id === user.tenantId);
+      }
+      
+      const categoryNames = filteredData.map((c: any) => c.name);
       setCategories(categoryNames);
       console.log('✅ Catégories chargées depuis l\'API:', categoryNames.length);
     } catch (error) {
       console.warn('Erreur lors du chargement des catégories:', error);
+      // Fallback: extraire les catégories des produits existants
+      const saved = localStorage.getItem('globalProducts');
+      if (saved) {
+        const products = JSON.parse(saved);
+        const uniqueCategories = [...new Set(products.map((p: Product) => p.category).filter(Boolean))];
+        setCategories(uniqueCategories);
+      }
     }
-  }, []);
+  }, [user]); // Removed allProducts dependency to prevent infinite loop
 
-  // Charger les produits et catégories au démarrage
+  // Charger les produits et catégories au démarrage et quand l'utilisateur change
   useEffect(() => {
-    loadProducts();
-    loadCategories();
-  }, [loadProducts, loadCategories]);
+    if (user) {
+      loadProducts();
+      loadCategories();
+    }
+  }, [user, loadProducts, loadCategories]);
 
   // FILTRAGE MULTI-TENANT
   const products = useMemo(() => {
@@ -140,15 +156,54 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const addProduct = async (productData: Omit<Product, 'id' | 'tenantId'>, creator: User) => {
     try {
-      // TODO: Implémenter l'ajout via l'API
-      const newProduct: Product = { 
-          ...productData, 
-          id: Date.now(), 
-          tenantId: creator.tenantId 
+      console.log('📦 Ajout produit via API:', productData);
+      
+      // Préparer les données pour l'API
+      const apiData = {
+        name: productData.name,
+        category: productData.category,
+        description: productData.description,
+        imageUrl: productData.imageUrl,
+        attributes: productData.attributes,
+        variants: productData.variants.map(v => ({
+          selectedOptions: v.selectedOptions,
+          price: v.price,
+          costPrice: v.costPrice,
+          sku: v.sku,
+          barcode: v.barcode,
+          stock_quantity: v.stock_quantity || 0,
+          quantityByStore: v.quantityByStore || {}
+        })),
+        tenantId: creator.tenantId,
+        storeId: currentStore?.id || 1,
+        low_stock_threshold: productData.low_stock_threshold || 0,
+        enable_email_alert: productData.enable_email_alert || false
       };
-      saveToGlobal([...allProducts, newProduct]);
+
+      // Envoyer au backend
+      const response = await fetch(`${API_URL}/api/products`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(apiData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Erreur API:', errorData);
+        throw new Error(errorData.error || 'Erreur lors de l\'ajout du produit');
+      }
+
+      const createdProduct = await response.json();
+      console.log('✅ Produit créé dans la base de données:', createdProduct);
+
+      // Recharger tous les produits depuis la DB pour avoir les données à jour
+      await loadProducts();
+      
     } catch (error) {
-      console.error('Erreur lors de l\'ajout du produit:', error);
+      console.error('❌ Erreur lors de l\'ajout du produit:', error);
+      throw error; // Propager l'erreur pour que l'UI puisse la gérer
     }
   };
   
@@ -281,7 +336,8 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
           attributes: updatedProductData.attributes,
           low_stock_threshold: updatedProductData.low_stock_threshold,
           enable_email_alert: updatedProductData.enable_email_alert,
-          tenantId: updatedProductData.tenantId
+          tenantId: updatedProductData.tenantId,
+          variants: updatedProductData.variants
         }),
       });
 
@@ -394,3 +450,11 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     </ProductContext.Provider>
   );
 };
+
+export function useProduct() {
+  const context = React.useContext(ProductContext);
+  if (context === undefined) {
+    throw new Error('useProduct must be used within a ProductProvider');
+  }
+  return context;
+}

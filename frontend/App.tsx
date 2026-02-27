@@ -21,6 +21,7 @@ import { ActionLogProvider } from './contexts/ActionLogContext';
 import { StoreProvider } from './contexts/StoreContext';
 import { CashDrawerProvider } from './contexts/CashDrawerContext';
 import { SupplierProvider } from './contexts/SupplierContext';
+import { InvoiceProvider } from './contexts/InvoiceContext';
 import { UpdateNotification } from './components/UpdateNotification';
 import { useDynamicFavicon } from './hooks/useDynamicFavicon';
 
@@ -56,22 +57,24 @@ const App: React.FC = () => {
                       <SettingsProvider>
                         <ProductProvider>
                           <CustomerProvider>
-                            <SalesHistoryProvider>
-                              <PromoCodeProvider>
-                                <CashDrawerProvider>
-                                  <CartProvider>
-                                    <ThemeProvider>
-                                      <ToastProvider>
-                                        <div className="min-h-screen font-sans">
-                                          <AppContent />
-                                          <UpdateNotification />
-                                        </div>
-                                      </ToastProvider>
-                                    </ThemeProvider>
-                                  </CartProvider>
-                                </CashDrawerProvider>
-                              </PromoCodeProvider>
-                            </SalesHistoryProvider>
+                            <InvoiceProvider>
+                              <SalesHistoryProvider>
+                                <PromoCodeProvider>
+                                  <CashDrawerProvider>
+                                    <CartProvider>
+                                      <ThemeProvider>
+                                        <ToastProvider>
+                                          <div className="min-h-screen font-sans">
+                                            <AppContent />
+                                            <UpdateNotification />
+                                          </div>
+                                        </ToastProvider>
+                                      </ThemeProvider>
+                                    </CartProvider>
+                                  </CashDrawerProvider>
+                                </PromoCodeProvider>
+                              </SalesHistoryProvider>
+                            </InvoiceProvider>
                           </CustomerProvider>
                         </ProductProvider>
                       </SettingsProvider>

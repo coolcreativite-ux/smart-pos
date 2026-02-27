@@ -223,13 +223,29 @@ const SalesHistory: React.FC = () => {
       <div className="space-y-4">
         {paginatedSales.length > 0 ? paginatedSales.map(sale => {
           const isExpanded = expandedSaleId === sale.id;
+          const hasReturns = sale.items.some(item => (item.returnedQuantity || 0) > 0);
+          const totalReturned = sale.items.reduce((sum, item) => sum + (item.returnedQuantity || 0), 0);
+          const totalItems = sale.items.reduce((sum, item) => sum + item.quantity, 0);
+          const isFullyReturned = totalReturned === totalItems;
+          
           return (
             <div key={sale.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 transition-all hover:shadow-indigo-500/10 border border-slate-100 dark:border-slate-700 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="grid grid-cols-2 md:grid-cols-5 flex-grow gap-4">
                       <div>
                           <p className="text-[10px] font-black uppercase text-slate-400 mb-1">{t('saleId')}</p>
-                          <p className="text-slate-800 dark:text-white truncate font-bold">#{sale.id.substring(sale.id.length - 8).toUpperCase()}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-slate-800 dark:text-white truncate font-bold">#{sale.id.substring(sale.id.length - 8).toUpperCase()}</p>
+                            {hasReturns && (
+                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
+                                isFullyReturned 
+                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' 
+                                  : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+                              }`}>
+                                {isFullyReturned ? '🔴 Retour complet' : '🟠 Retour partiel'}
+                              </span>
+                            )}
+                          </div>
                       </div>
                       <div>
                           <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Date & Heure</p>
@@ -287,22 +303,38 @@ const SalesHistory: React.FC = () => {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                              {sale.items.map(item => (
-                                <tr key={item.id}>
-                                  <td className="px-4 py-3">
-                                    <p className="font-bold text-slate-800 dark:text-white uppercase">{item.productName}</p>
-                                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">{item.variantName}</p>
-                                  </td>
-                                  <td className="px-4 py-3 text-center font-bold">
-                                    {item.quantity}
-                                    {item.returnedQuantity && item.returnedQuantity > 0 && (
-                                      <span className="ml-2 px-1.5 py-0.5 bg-rose-100 text-rose-600 rounded text-[9px] font-black">-{item.returnedQuantity}</span>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-3 text-right text-slate-500">{formatCurrency(item.variant.price)}</td>
-                                  <td className="px-4 py-3 text-right font-black text-slate-900 dark:text-white">{formatCurrency(item.variant.price * item.quantity)}</td>
-                                </tr>
-                              ))}
+                              {sale.items.map(item => {
+                                const activeQuantity = item.quantity - (item.returnedQuantity || 0);
+                                const originalSubtotal = item.variant.price * item.quantity;
+                                const activeSubtotal = item.variant.price * activeQuantity;
+                                const hasReturns = item.returnedQuantity && item.returnedQuantity > 0;
+                                
+                                return (
+                                  <tr key={item.id}>
+                                    <td className="px-4 py-3">
+                                      <p className="font-bold text-slate-800 dark:text-white uppercase">{item.productName}</p>
+                                      <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">{item.variantName}</p>
+                                    </td>
+                                    <td className="px-4 py-3 text-center font-bold">
+                                      {item.quantity}
+                                      {hasReturns && (
+                                        <span className="ml-2 px-1.5 py-0.5 bg-rose-100 text-rose-600 rounded text-[9px] font-black">-{item.returnedQuantity}</span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-slate-500">{formatCurrency(item.variant.price)}</td>
+                                    <td className="px-4 py-3 text-right font-black">
+                                      {hasReturns ? (
+                                        <div className="flex flex-col items-end">
+                                          <span className="text-slate-400 line-through text-xs">{formatCurrency(originalSubtotal)}</span>
+                                          <span className="text-slate-900 dark:text-white">{formatCurrency(activeSubtotal)}</span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-slate-900 dark:text-white">{formatCurrency(originalSubtotal)}</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
@@ -354,6 +386,84 @@ const SalesHistory: React.FC = () => {
                              <p className="text-[10px] font-black text-rose-500 uppercase">Reste à payer : {formatCurrency(sale.total - sale.totalPaid)}</p>
                            )}
                         </div>
+                        
+                        {/* Détails des retours */}
+                        {sale.returns && sale.returns.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Historique des retours</h5>
+                            <div className="space-y-3">
+                              {sale.returns.map((returnTx, idx) => (
+                                <div key={returnTx.id || idx} className="bg-rose-50 dark:bg-rose-900/10 p-3 rounded-lg border border-rose-100 dark:border-rose-800">
+                                  <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
+                                        returnTx.refundMethod === 'cash' ? 'bg-emerald-100 text-emerald-700' :
+                                        returnTx.refundMethod === 'store_credit' ? 'bg-teal-100 text-teal-700' :
+                                        'bg-indigo-100 text-indigo-700'
+                                      }`}>
+                                        {returnTx.refundMethod === 'cash' ? '💵 Cash' :
+                                         returnTx.refundMethod === 'store_credit' ? '💳 Crédit' :
+                                         '🔄 Échange'}
+                                      </span>
+                                      <span className="text-[9px] font-bold text-slate-600 dark:text-slate-400">
+                                        {new Date(returnTx.timestamp).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                    </div>
+                                    <span className="text-xs font-black text-rose-600 dark:text-rose-400">
+                                      -{formatCurrency(returnTx.totalRefundAmount)}
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="text-[9px] space-y-1">
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500 dark:text-slate-400">Raison:</span>
+                                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                                        {returnTx.reason === 'defective' ? 'Produit défectueux' :
+                                         returnTx.reason === 'wrong_size' ? 'Mauvaise taille' :
+                                         returnTx.reason === 'wrong_color' ? 'Mauvaise couleur' :
+                                         returnTx.reason === 'unsatisfied' ? 'Client insatisfait' :
+                                         returnTx.reason === 'order_error' ? 'Erreur de commande' :
+                                         'Autre raison'}
+                                      </span>
+                                    </div>
+                                    
+                                    {returnTx.notes && (
+                                      <div className="mt-1 p-2 bg-white dark:bg-slate-800 rounded text-[8px] italic text-slate-600 dark:text-slate-400">
+                                        "{returnTx.notes}"
+                                      </div>
+                                    )}
+                                    
+                                    <div className="flex justify-between mt-2">
+                                      <span className="text-slate-500 dark:text-slate-400">Traité par:</span>
+                                      <span className="font-bold text-slate-700 dark:text-slate-300 uppercase">
+                                        {returnTx.processedByName}
+                                      </span>
+                                    </div>
+                                    
+                                    {returnTx.approvedByName && (
+                                      <div className="flex justify-between">
+                                        <span className="text-slate-500 dark:text-slate-400">Approuvé par:</span>
+                                        <span className="font-bold text-amber-600 dark:text-amber-400 uppercase">
+                                          {returnTx.approvedByName}
+                                        </span>
+                                      </div>
+                                    )}
+                                    
+                                    <div className="mt-2 pt-2 border-t border-rose-200 dark:border-rose-800">
+                                      <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 mb-1">Articles retournés:</p>
+                                      {returnTx.items.map((item: any, itemIdx: number) => (
+                                        <div key={itemIdx} className="flex justify-between text-[8px]">
+                                          <span className="text-slate-600 dark:text-slate-400">{item.productName} ({item.variantName}) x{item.quantity}</span>
+                                          <span className="font-bold text-slate-700 dark:text-slate-300">{formatCurrency(item.totalRefund)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -15,6 +15,7 @@ interface CustomerContextType {
   addStoreCredit: (customerId: number, amount: number) => void;
   useStoreCredit: (customerId: number, amount: number) => boolean;
   loadCustomers: () => Promise<void>;
+  fetchCustomers: () => Promise<void>; // Alias pour loadCustomers
 }
 
 export const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
@@ -115,15 +116,18 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
         // Recharger tous les clients depuis la DB
         await loadCustomers();
         
-        // Retourner le client créé
+        // Retourner le client créé avec le bon mapping
         const newCustomer: Customer = {
           id: result.id,
-          tenantId: user.tenantId,
-          ...customerData,
+          tenantId: result.tenant_id || user.tenantId,
+          firstName: result.first_name || customerData.firstName,
+          lastName: result.last_name || customerData.lastName,
+          email: result.email || customerData.email,
+          phone: result.phone || customerData.phone,
           salesHistoryIds: [],
-          loyaltyPoints: 0,
-          storeCredit: 0,
-          storeId: currentStore?.id || 1,
+          loyaltyPoints: result.loyalty_points || 0,
+          storeCredit: parseFloat(result.store_credit || 0),
+          storeId: result.store_id || currentStore?.id || 1,
         };
         return newCustomer;
       }
@@ -243,9 +247,18 @@ export const CustomerProvider: React.FC<{ children: ReactNode }> = ({ children }
       updateCustomerAfterSale, 
       addStoreCredit, 
       useStoreCredit,
-      loadCustomers 
+      loadCustomers,
+      fetchCustomers: loadCustomers // Alias pour compatibilité
     }}>
       {children}
     </CustomerContext.Provider>
   );
 };
+
+export function useCustomer() {
+  const context = React.useContext(CustomerContext);
+  if (context === undefined) {
+    throw new Error('useCustomer must be used within a CustomerProvider');
+  }
+  return context;
+}

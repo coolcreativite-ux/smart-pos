@@ -54,34 +54,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         body: JSON.stringify({ username, password }),
       });
 
+      console.log('🔍 Response status:', response.status, 'ok:', response.ok);
+
       if (!response.ok) {
-        // Si l'API n'est pas disponible, utiliser l'authentification locale
-        console.warn('API backend non disponible, utilisation de l\'authentification locale');
-        const foundUser = users.find(u => 
-            u.username.toLowerCase() === username.toLowerCase() && 
-            u.password === password
-        );
-        
-        if (!foundUser) return false;
-        
-        setUser(foundUser);
-        // Sauvegarder la session avec timestamp
-        const session = {
-          user: foundUser,
-          timestamp: Date.now()
-        };
-        localStorage.setItem('currentUserSession', JSON.stringify(session));
-        
-        // Recharger les licences après la connexion
-        console.log('[Auth] Rechargement des licences après connexion (local)...');
-        await reloadLicenses();
-        
-        return true;
+        // Toute erreur (401, 500, etc.) = échec de connexion
+        console.warn('❌ Échec de connexion, status:', response.status);
+        return false;
       }
 
       const result = await response.json();
+      console.log('🔍 Result:', result);
       
       if (result.success && result.user) {
+        console.log('✅ Connexion réussie, utilisateur:', result.user.username);
         setUser(result.user);
         // Sauvegarder la session avec timestamp
         const session = {
@@ -97,33 +82,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return true;
       }
       
+      console.warn('❌ Réponse invalide du serveur');
       return false;
     } catch (error) {
-      console.warn('Erreur lors de l\'authentification:', error);
-      
-      // Fallback vers l'authentification locale
-      const foundUser = users.find(u => 
-          u.username.toLowerCase() === username.toLowerCase() && 
-          u.password === password
-      );
-      
-      if (!foundUser) return false;
-      
-      setUser(foundUser);
-      // Sauvegarder la session avec timestamp
-      const session = {
-        user: foundUser,
-        timestamp: Date.now()
-      };
-      localStorage.setItem('currentUserSession', JSON.stringify(session));
-      
-      // Recharger les licences après la connexion
-      console.log('[Auth] Rechargement des licences après connexion (fallback)...');
-      await reloadLicenses();
-      
-      return true;
+      console.error('❌ Erreur réseau lors de l\'authentification:', error);
+      return false;
     }
-  }, [users, reloadLicenses]);
+  }, [reloadLicenses]);
 
   const activateApp = useCallback(async (key: string): Promise<boolean> => {
     if (!user) return false;

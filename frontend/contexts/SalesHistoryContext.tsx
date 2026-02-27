@@ -129,13 +129,22 @@ export const SalesHistoryProvider: React.FC<{ children: ReactNode }> = ({ childr
         is_credit: saleWithTenant.isCredit,
         total_paid: saleWithTenant.totalPaid,
         item_status: saleWithTenant.itemStatus || 'taken',
-        items: saleWithTenant.items.map(item => ({
-          product_id: item.productId,
-          variant_id: item.variant.id,
-          quantity: item.quantity,
-          unit_price: item.variant.price,
-          total_price: item.variant.price * item.quantity
-        }))
+        items: saleWithTenant.items.map(item => {
+          const mappedItem = {
+            product_id: item.productId,
+            variant_id: item.variant.id,
+            quantity: item.quantity,
+            unit_price: item.variant.price,
+            total_price: item.variant.price * item.quantity
+          };
+          console.log('📦 [Frontend] Item préparé:', {
+            productName: item.productName,
+            quantity: item.quantity,
+            quantity_type: typeof item.quantity,
+            mappedItem
+          });
+          return mappedItem;
+        })
       };
 
       // Envoyer à l'API

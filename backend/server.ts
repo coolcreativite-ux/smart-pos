@@ -1816,6 +1816,15 @@ app.post('/api/sales', async (req, res) => {
     // Créer les items de la vente
     const createdItems = [];
     for (const item of items) {
+      console.log('📦 Item à insérer:', {
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        quantity: item.quantity,
+        quantity_type: typeof item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.total_price
+      });
+      
       const itemResult = await client.query(
         `INSERT INTO sale_items (
           sale_id, product_id, variant_id, quantity, unit_price, total_price

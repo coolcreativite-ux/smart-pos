@@ -2042,28 +2042,31 @@ app.get('/api/sales', async (req, res) => {
     const result = await pool.query(`
       SELECT 
         s.*,
-        json_agg(
-          json_build_object(
-            'id', CONCAT(si.product_id, '-', si.variant_id),
-            'productId', si.product_id,
-            'productName', p.name,
-            'imageUrl', p.image_url,
-            'variantName', COALESCE(
-              (SELECT STRING_AGG(CONCAT(key, ': ', value), ', ')
-               FROM json_each_text(pv.selected_options)),
-              'Standard'
-            ),
-            'variant', json_build_object(
-              'id', pv.id,
-              'selectedOptions', pv.selected_options,
-              'price', pv.price,
-              'costPrice', pv.cost_price,
-              'sku', pv.sku,
-              'barcode', pv.barcode
-            ),
-            'quantity', si.quantity,
-            'returnedQuantity', COALESCE(si.returned_quantity, 0)
-          ) ORDER BY si.id
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', CONCAT(si.product_id, '-', si.variant_id),
+              'productId', si.product_id,
+              'productName', p.name,
+              'imageUrl', p.image_url,
+              'variantName', COALESCE(
+                (SELECT STRING_AGG(CONCAT(key, ': ', value), ', ')
+                 FROM json_each_text(pv.selected_options)),
+                'Standard'
+              ),
+              'variant', json_build_object(
+                'id', pv.id,
+                'selectedOptions', pv.selected_options,
+                'price', pv.price,
+                'costPrice', pv.cost_price,
+                'sku', pv.sku,
+                'barcode', pv.barcode
+              ),
+              'quantity', si.quantity,
+              'returnedQuantity', COALESCE(si.returned_quantity, 0)
+            ) ORDER BY si.id
+          ) FILTER (WHERE si.id IS NOT NULL),
+          '[]'::json
         ) as items,
         json_build_object(
           'id', u.id,
@@ -2083,7 +2086,8 @@ app.get('/api/sales', async (req, res) => {
     if (result.rows.length > 0) {
       console.log('📦 Exemple de vente retournée:', {
         id: result.rows[0].id,
-        items: result.rows[0].items
+        items: result.rows[0].items,
+        itemsCount: result.rows[0].items?.length
       });
     }
     

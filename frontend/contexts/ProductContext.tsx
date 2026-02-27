@@ -36,8 +36,18 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     try {
       setIsLoading(true);
       
+      if (!user?.tenantId) {
+        console.warn('⚠️ Pas de tenantId disponible pour charger les produits');
+        setIsLoading(false);
+        return;
+      }
+      
       // Une seule requête au lieu de 4 - le backend retourne tout
-      const response = await fetch(`${API_URL}/api/products`);
+      const response = await fetch(`${API_URL}/api/products`, {
+        headers: {
+          'x-tenant-id': user.tenantId.toString()
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -100,7 +110,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   // Charger les catégories séparément
   const loadCategories = useCallback(async () => {

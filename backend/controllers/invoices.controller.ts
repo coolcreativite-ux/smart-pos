@@ -544,9 +544,9 @@ export class InvoicesController {
           subtotalHT: parseFloat(invoice.subtotal_ht) || 0,
           totalDiscounts: parseFloat(invoice.total_discounts) || 0,
           tvaSummary: tvaSummary.map(tva => ({
-            rate: parseFloat(tva.rate) || 0,
-            base: parseFloat(tva.base) || 0,
-            amount: parseFloat(tva.amount) || 0
+            rate: tva.rate,
+            base: tva.base,
+            amount: tva.amount
           })),
           totalTVA: parseFloat(invoice.total_tva) || 0,
           additionalTaxes: taxesResult.rows.map(tax => ({

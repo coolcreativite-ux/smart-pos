@@ -96,24 +96,47 @@ export class InvoicesController {
         requestData.additionalTaxes || []
       );
 
-      // 4. Calculer les totaux
+      // 4. Récupérer les noms de produits et variantes AVANT le calcul
+      const itemsWithNames = [];
+      for (let i = 0; i < requestData.items.length; i++) {
+        const originalItem = requestData.items[i];
+        
+        // Récupérer les noms de produit et variante
+        const productResult = await client.query(
+          `SELECT p.name as product_name, pv.sku, pv.selected_options
+           FROM products p
+           JOIN product_variants pv ON pv.product_id = p.id
+           WHERE p.id = $1 AND pv.id = $2`,
+          [originalItem.productId, originalItem.variantId]
+        );
+
+        const productName = productResult.rows[0]?.product_name || 'Produit inconnu';
+        const selectedOptions = productResult.rows[0]?.selected_options || {};
+        const variantName = Object.keys(selectedOptions).length > 0 
+          ? Object.values(selectedOptions).join(' / ')
+          : 'Standard';
+
+        itemsWithNames.push({
+          ...originalItem,
+          productName,
+          variantName
+        });
+      }
+
+      // 5. Calculer les totaux avec les noms
       const totals = this.taxCalculationService.calculateInvoiceTotals(
-        requestData.items.map(item => ({
-          ...item,
-          productName: '', // Sera récupéré de la base
-          variantName: ''
-        })),
+        itemsWithNames,
         requestData.globalDiscountPercent || 0,
         additionalTaxes
       );
 
-      // 5. Générer le numéro de facture
+      // 6. Générer le numéro de facture
       const invoiceNumber = await this.invoiceNumberService.getNextNumber(
         tenantId,
         requestData.documentSubtype
       );
 
-      // 6. Créer la facture dans la base
+      // 7. Créer la facture dans la base
       const invoiceResult = await client.query(
         `INSERT INTO invoices (
           tenant_id, invoice_number, document_type, invoice_type, document_subtype,
@@ -144,26 +167,10 @@ export class InvoicesController {
 
       const invoiceId = invoiceResult.rows[0].id;
 
-      // 7. Créer les lignes d'articles
+      // 8. Créer les lignes d'articles (les noms sont déjà dans totals.items)
       for (let i = 0; i < totals.items.length; i++) {
         const item = totals.items[i];
-        const originalItem = requestData.items[i];
-
-        // Récupérer les noms de produit et variante
-        const productResult = await client.query(
-          `SELECT p.name as product_name, pv.sku, pv.selected_options
-           FROM products p
-           JOIN product_variants pv ON pv.product_id = p.id
-           WHERE p.id = $1 AND pv.id = $2`,
-          [originalItem.productId, originalItem.variantId]
-        );
-
-        const productName = productResult.rows[0]?.product_name || 'Produit inconnu';
-        // Construire le nom de la variante à partir des options sélectionnées
-        const selectedOptions = productResult.rows[0]?.selected_options || {};
-        const variantName = Object.keys(selectedOptions).length > 0 
-          ? Object.values(selectedOptions).join(' / ')
-          : 'Standard';
+        const originalItem = itemsWithNames[i];
 
         await client.query(
           `INSERT INTO invoice_items (
@@ -176,8 +183,8 @@ export class InvoicesController {
             i + 1,
             originalItem.productId,
             originalItem.variantId,
-            productName,
-            variantName,
+            item.productName,
+            item.variantName,
             item.quantity,
             item.unitPriceHT,
             item.discountPercent,
@@ -189,7 +196,7 @@ export class InvoicesController {
         );
       }
 
-      // 8. Créer les taxes additionnelles
+      // 9. Créer les taxes additionnelles
       for (const tax of additionalTaxes) {
         await client.query(
           `INSERT INTO invoice_taxes (invoice_id, tax_name, tax_amount)
@@ -198,9 +205,9 @@ export class InvoicesController {
         );
       }
 
-      // 9. Récupérer les infos entreprise
+      // 10. Récupérer les infos entreprise
       const companyResult = await client.query(
-        `SELECT name, address, ncc
+        `SELECT name, address, ncc, rccm, phone, email, logo_url
          FROM tenants
          WHERE id = $1`,
         [tenantId]
@@ -209,13 +216,29 @@ export class InvoicesController {
       const companyInfo: CompanyInfo = {
         name: companyResult.rows[0]?.name || 'Entreprise',
         address: companyResult.rows[0]?.address || '',
-        phone: '', // Non disponible dans la table tenants
-        email: '', // Non disponible dans la table tenants
+        phone: companyResult.rows[0]?.phone || '',
+        email: companyResult.rows[0]?.email || '',
         ncc: companyResult.rows[0]?.ncc || '',
-        logoUrl: undefined // Non disponible dans la table tenants
+        rccm: companyResult.rows[0]?.rccm || '',
+        logoUrl: companyResult.rows[0]?.logo_url || undefined
       };
 
-      // 10. Récupérer les infos client
+      // 10b. Récupérer le nom, l'email et le téléphone de l'utilisateur créateur
+      const userResult = await client.query(
+        `SELECT username, first_name, last_name, email, phone
+         FROM users
+         WHERE id = $1`,
+        [userId]
+      );
+
+      const createdByName = userResult.rows[0] 
+        ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || userResult.rows[0].username
+        : `User #${userId}`;
+      
+      const createdByEmail = userResult.rows[0]?.email || '';
+      const createdByPhone = userResult.rows[0]?.phone || '';
+
+      // 11. Récupérer les infos client
       const customerResult = await client.query(
         `SELECT first_name, last_name, ncc, phone, email, address
          FROM customers
@@ -226,7 +249,7 @@ export class InvoicesController {
       // Construire le nom complet
       const customerName = `${customerResult.rows[0].first_name} ${customerResult.rows[0].last_name}`.trim();
 
-      // 11. Préparer les données pour génération de documents
+      // 12. Préparer les données pour génération de documents
       const documentData: InvoiceDocumentData = {
         invoice: {
           id: invoiceId,
@@ -248,7 +271,10 @@ export class InvoicesController {
           commercialMessage: requestData.commercialMessage,
           createdAt: new Date(),
           updatedAt: new Date(),
-          createdBy: userId
+          createdBy: userId,
+          createdByName: createdByName,
+          createdByEmail: createdByEmail,
+          createdByPhone: createdByPhone
         },
         customer: {
           id: customerId,
@@ -275,15 +301,15 @@ export class InvoicesController {
         company: companyInfo
       };
 
-      // 12. Générer PDF
+      // 13. Générer PDF
       const pdfBuffer = await this.pdfGenerationService.generateInvoicePDF(documentData);
       const pdfPath = await this.pdfGenerationService.savePDF(tenantId, invoiceNumber, pdfBuffer);
 
-      // 13. Générer CSV
+      // 14. Générer CSV
       const csvContent = await this.csvExportService.generateInvoiceCSV(documentData);
       const csvPath = await this.csvExportService.saveCSV(tenantId, invoiceNumber, csvContent);
 
-      // 14. Mettre à jour les chemins des fichiers
+      // 15. Mettre à jour les chemins des fichiers
       await client.query(
         `UPDATE invoices SET pdf_path = $1, csv_path = $2 WHERE id = $3`,
         [pdfPath, csvPath, invoiceId]
@@ -291,7 +317,7 @@ export class InvoicesController {
 
       await client.query('COMMIT');
 
-      // 15. Retourner la réponse
+      // 16. Retourner la réponse
       res.status(201).json({
         success: true,
         invoice: {
@@ -507,23 +533,27 @@ export class InvoicesController {
             id: item.id,
             productName: item.product_name,
             variantName: item.variant_name,
-            quantity: parseFloat(item.quantity),
-            unitPriceHT: parseFloat(item.unit_price_ht),
-            discountPercent: parseFloat(item.discount_percent),
-            totalHT: parseFloat(item.total_ht),
-            tvaRate: parseFloat(item.tva_rate),
-            tvaAmount: parseFloat(item.tva_amount),
-            totalTTC: parseFloat(item.total_ttc)
+            quantity: parseFloat(item.quantity) || 0,
+            unitPriceHT: parseFloat(item.unit_price_ht) || 0,
+            discountPercent: parseFloat(item.discount_percent) || 0,
+            totalHT: parseFloat(item.total_ht) || 0,
+            tvaRate: parseFloat(item.tva_rate) || 0,
+            tvaAmount: parseFloat(item.tva_amount) || 0,
+            totalTTC: parseFloat(item.total_ttc) || 0
           })),
-          subtotalHT: parseFloat(invoice.subtotal_ht),
-          totalDiscounts: parseFloat(invoice.total_discounts),
-          tvaSummary,
-          totalTVA: parseFloat(invoice.total_tva),
+          subtotalHT: parseFloat(invoice.subtotal_ht) || 0,
+          totalDiscounts: parseFloat(invoice.total_discounts) || 0,
+          tvaSummary: tvaSummary.map(tva => ({
+            rate: parseFloat(tva.rate) || 0,
+            base: parseFloat(tva.base) || 0,
+            amount: parseFloat(tva.amount) || 0
+          })),
+          totalTVA: parseFloat(invoice.total_tva) || 0,
           additionalTaxes: taxesResult.rows.map(tax => ({
             name: tax.tax_name,
-            amount: parseFloat(tax.tax_amount)
+            amount: parseFloat(tax.tax_amount) || 0
           })),
-          totalTTC: parseFloat(invoice.total_ttc),
+          totalTTC: parseFloat(invoice.total_ttc) || 0,
           paymentMethod: invoice.payment_method,
           commercialMessage: invoice.commercial_message,
           pdfUrl: `/api/invoices/${invoice.id}/pdf`,

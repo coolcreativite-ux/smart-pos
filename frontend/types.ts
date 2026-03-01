@@ -142,12 +142,23 @@ export interface User {
   tenantId: number; // ID du propriétaire (ou son propre ID si Owner)
   username: string;
   email?: string;
+  phone?: string; // Téléphone personnel de l'utilisateur
   firstName: string;
   lastName: string;
   password?: string;
   role: UserRole;
   permissions: Permissions;
   assignedStoreId?: number;
+  tenant?: {
+    id: number;
+    name: string;
+    ncc?: string;
+    rccm?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    logo_url?: string;
+  };
 }
 
 export interface License {

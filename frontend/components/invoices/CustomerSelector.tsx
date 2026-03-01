@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCustomer } from '../../contexts/CustomerContext';
+import { useCustomers } from '../../hooks/useCustomers';
 import { InvoiceType } from '../../types/invoice.types';
 
 interface CustomerSelectorProps {
@@ -25,19 +25,20 @@ export function CustomerSelector({
   onCustomerDataChange,
   errors = {}
 }: CustomerSelectorProps) {
-  const { customers, fetchCustomers } = useCustomer();
+  const { customers, loadCustomers } = useCustomers();
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [isManualEntry, setIsManualEntry] = useState(false);
 
   useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
+    loadCustomers();
+  }, [loadCustomers]);
 
   const filteredCustomers = customers.filter(customer => {
     const search = searchTerm.toLowerCase();
+    const fullName = `${customer.firstName} ${customer.lastName}`.toLowerCase();
     return (
-      customer.name?.toLowerCase().includes(search) ||
+      fullName.includes(search) ||
       customer.email?.toLowerCase().includes(search) ||
       customer.phone?.includes(search) ||
       customer.ncc?.toLowerCase().includes(search)
@@ -45,15 +46,16 @@ export function CustomerSelector({
   });
 
   const handleCustomerSelect = (customer: any) => {
+    const fullName = `${customer.firstName} ${customer.lastName}`;
     onCustomerSelect(customer.id);
     onCustomerDataChange({
-      name: customer.name || '',
+      name: fullName,
       ncc: customer.ncc || '',
       phone: customer.phone || '',
       email: customer.email || '',
       address: customer.address || ''
     });
-    setSearchTerm(customer.name || '');
+    setSearchTerm(fullName);
     setShowDropdown(false);
     setIsManualEntry(false);
   };
@@ -111,7 +113,9 @@ export function CustomerSelector({
                   onClick={() => handleCustomerSelect(customer)}
                   className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                 >
-                  <div className="font-medium text-gray-900">{customer.name}</div>
+                  <div className="font-medium text-gray-900">
+                    {customer.firstName} {customer.lastName}
+                  </div>
                   <div className="text-sm text-gray-600 space-y-1">
                     {customer.ncc && <div>NCC: {customer.ncc}</div>}
                     {customer.phone && <div>Tél: {customer.phone}</div>}
@@ -170,50 +174,46 @@ export function CustomerSelector({
             </div>
           )}
 
-          {/* Téléphone (requis pour B2C, B2F, B2G) */}
-          {invoiceType !== 'B2B' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Téléphone
-              </label>
-              <input
-                type="tel"
-                value={customerData.phone || ''}
-                onChange={(e) => handleFieldChange('phone', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                  errors['customerData.phone'] || errors['customerData.contact'] ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="+225 XX XX XX XX XX"
-              />
-              {errors['customerData.phone'] && (
-                <p className="mt-1 text-sm text-red-600">{errors['customerData.phone']}</p>
-              )}
-            </div>
-          )}
+          {/* Téléphone */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Téléphone {invoiceType !== 'B2B' && <span className="text-red-500">*</span>}
+            </label>
+            <input
+              type="tel"
+              value={customerData.phone || ''}
+              onChange={(e) => handleFieldChange('phone', e.target.value)}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                errors['customerData.phone'] || errors['customerData.contact'] ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="+225 XX XX XX XX XX"
+            />
+            {errors['customerData.phone'] && (
+              <p className="mt-1 text-sm text-red-600">{errors['customerData.phone']}</p>
+            )}
+          </div>
 
-          {/* Email (requis pour B2C, B2F, B2G) */}
-          {invoiceType !== 'B2B' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                value={customerData.email || ''}
-                onChange={(e) => handleFieldChange('email', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                  errors['customerData.email'] || errors['customerData.contact'] ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="email@example.com"
-              />
-              {errors['customerData.email'] && (
-                <p className="mt-1 text-sm text-red-600">{errors['customerData.email']}</p>
-              )}
-              {errors['customerData.contact'] && !errors['customerData.email'] && !errors['customerData.phone'] && (
-                <p className="mt-1 text-sm text-red-600">{errors['customerData.contact']}</p>
-              )}
-            </div>
-          )}
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email {invoiceType !== 'B2B' && <span className="text-red-500">*</span>}
+            </label>
+            <input
+              type="email"
+              value={customerData.email || ''}
+              onChange={(e) => handleFieldChange('email', e.target.value)}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                errors['customerData.email'] || errors['customerData.contact'] ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="email@example.com"
+            />
+            {errors['customerData.email'] && (
+              <p className="mt-1 text-sm text-red-600">{errors['customerData.email']}</p>
+            )}
+            {errors['customerData.contact'] && !errors['customerData.email'] && !errors['customerData.phone'] && (
+              <p className="mt-1 text-sm text-red-600">{errors['customerData.contact']}</p>
+            )}
+          </div>
 
           {/* Adresse (optionnel) */}
           <div>

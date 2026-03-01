@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useInvoice } from '../../contexts/InvoiceContext';
+import { useCustomers } from '../../hooks/useCustomers';
 import { useToast } from '../../contexts/ToastContext';
 import {
   InvoiceFormData,
@@ -25,18 +26,21 @@ export function InvoicePreview({
   const { user } = useAuth();
   const invoiceContext = useInvoice();
   const { createInvoice } = invoiceContext;
+  const { customers, addCustomer, loadCustomers } = useCustomers();
   const { addToast } = useToast();
   const [generating, setGenerating] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
   // Récupérer les infos de l'entreprise depuis le contexte utilisateur
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const companyInfo = {
-    name: user?.tenantId ? 'Nom de l\'entreprise' : 'Nom de l\'entreprise',
-    ncc: '',
-    address: '',
-    phone: '',
-    email: '',
-    logo: ''
+    name: user?.tenant?.name || 'Nom de l\'entreprise',
+    ncc: user?.tenant?.ncc || '',
+    rccm: user?.tenant?.rccm || '',
+    address: user?.tenant?.address || '',
+    phone: user?.tenant?.phone || '',
+    email: user?.tenant?.email || '',
+    logo: user?.tenant?.logo_url ? `${API_BASE_URL}${user.tenant.logo_url}` : ''
   };
 
   // Déterminer le titre du document
@@ -68,7 +72,71 @@ export function InvoicePreview({
     setGenerating(true);
 
     try {
-      const result = await createInvoice(formData, user.tenantId, user.id);
+      let finalFormData = { ...formData };
+
+      // Si pas de customerId, créer automatiquement le client
+      if (!formData.customerId && formData.customerData.name) {
+        console.log('🔍 [InvoicePreview] Création automatique du client:', formData.customerData);
+        
+        // Vérifier si le client existe déjà
+        await loadCustomers();
+        
+        let existingCustomer = null;
+        
+        // Pour B2B, chercher par NCC
+        if (formData.invoiceType === 'B2B' && formData.customerData.ncc) {
+          existingCustomer = customers.find(c => c.ncc === formData.customerData.ncc);
+        }
+        // Pour B2C/B2F/B2G, chercher par téléphone ou email
+        else {
+          if (formData.customerData.phone) {
+            existingCustomer = customers.find(c => c.phone === formData.customerData.phone);
+          }
+          if (!existingCustomer && formData.customerData.email) {
+            existingCustomer = customers.find(c => c.email === formData.customerData.email);
+          }
+        }
+
+        if (existingCustomer) {
+          console.log('✅ [InvoicePreview] Client existant trouvé:', existingCustomer.id);
+          finalFormData = {
+            ...finalFormData,
+            customerId: existingCustomer.id
+          };
+        } else {
+          // Créer le nouveau client
+          const [firstName, ...lastNameParts] = formData.customerData.name.split(' ');
+          const lastName = lastNameParts.join(' ') || firstName;
+          
+          const newCustomer = addCustomer({
+            firstName: firstName,
+            lastName: lastName,
+            email: formData.customerData.email || undefined,
+            phone: formData.customerData.phone || undefined,
+            ncc: formData.customerData.ncc || undefined,
+            address: formData.customerData.address || undefined,
+            storeId: user.assignedStoreId
+          });
+          
+          console.log('✅ [InvoicePreview] Nouveau client créé:', newCustomer.id);
+          
+          finalFormData = {
+            ...finalFormData,
+            customerId: newCustomer.id
+          };
+          
+          addToast('Client créé et ajouté à votre liste', 'success');
+        }
+      }
+
+      // Nettoyer les tempId avant d'envoyer au backend
+      const cleanedFormData = {
+        ...finalFormData,
+        items: finalFormData.items.map(({ tempId, ...item }) => item),
+        additionalTaxes: finalFormData.additionalTaxes.map(({ tempId, ...tax }) => tax)
+      };
+
+      const result = await createInvoice(cleanedFormData, user.tenantId, user.id);
       
       addToast(
         `${getDocumentTitle()} créé${formData.documentType === 'invoice' ? 'e' : ''} avec succès!`,
@@ -182,6 +250,11 @@ export function InvoicePreview({
                     <span className="font-semibold">NCC:</span> {companyInfo.ncc}
                   </p>
                 )}
+                {companyInfo.rccm && (
+                  <p className="text-sm text-slate-600">
+                    <span className="font-semibold">RCCM:</span> {companyInfo.rccm}
+                  </p>
+                )}
                 {companyInfo.address && (
                   <p className="text-sm text-slate-600">{companyInfo.address}</p>
                 )}
@@ -213,7 +286,81 @@ export function InvoicePreview({
 
           {/* Informations générales */}
           <div className="p-8 grid grid-cols-2 gap-8">
-            {/* Informations client */}
+            {/* Informations document - À GAUCHE */}
+            <div>
+              <h3 className="text-sm font-black text-slate-500 uppercase mb-3">
+                Informations document
+              </h3>
+              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-600">Numéro:</span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    (Sera généré)
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-600">Type:</span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {getDocumentTitle()} - {formData.invoiceType}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-600">Date:</span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {formatDate(new Date())}
+                  </span>
+                </div>
+                {formData.dueDate ? (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-slate-600">Échéance:</span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {formatDate(formData.dueDate)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-slate-600">Validité:</span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      Immédiate
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-sm text-slate-600">Paiement:</span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {formData.paymentMethod}
+                  </span>
+                </div>
+                {user && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-slate-600">Vendeur:</span>
+                      <span className="text-sm font-semibold text-slate-900">
+                        {user.firstName} {user.lastName}
+                      </span>
+                    </div>
+                    {user.email && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-slate-600">Email:</span>
+                        <span className="text-sm font-semibold text-slate-900">
+                          {user.email}
+                        </span>
+                      </div>
+                    )}
+                    {user.phone && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-slate-600">Tél:</span>
+                        <span className="text-sm font-semibold text-slate-900">
+                          {user.phone}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Informations client - À DROITE */}
             <div>
               <h3 className="text-sm font-black text-slate-500 uppercase mb-3">
                 Informations client
@@ -238,35 +385,6 @@ export function InvoicePreview({
                     <span className="font-semibold">Email:</span> {formData.customerData.email}
                   </p>
                 )}
-              </div>
-            </div>
-
-            {/* Informations facture */}
-            <div>
-              <h3 className="text-sm font-black text-slate-500 uppercase mb-3">
-                Informations {formData.documentType === 'invoice' ? 'facture' : 'reçu'}
-              </h3>
-              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-slate-600">Date:</span>
-                  <span className="text-sm font-semibold text-slate-900">
-                    {formatDate(new Date())}
-                  </span>
-                </div>
-                {formData.dueDate && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-slate-600">Échéance:</span>
-                    <span className="text-sm font-semibold text-slate-900">
-                      {formatDate(formData.dueDate)}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-sm text-slate-600">Paiement:</span>
-                  <span className="text-sm font-semibold text-slate-900">
-                    {formData.paymentMethod}
-                  </span>
-                </div>
               </div>
             </div>
           </div>

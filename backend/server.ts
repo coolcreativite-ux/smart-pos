@@ -7,6 +7,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { createInvoicesRouter } from './routes/invoices.routes';
+import { queryWithRetry, getClientWithRetry } from './lib/db-helper';
 
 // Charger les variables d'environnement selon l'environnement
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
@@ -70,13 +71,50 @@ const upload = multer({
 // Configuration PostgreSQL - Utiliser DATABASE_URL de Coolify/Supabase
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  max: 10, // Réduire le nombre de connexions pour Supabase pooler
+  idleTimeoutMillis: 10000, // Fermer les connexions inactives après 10s (pooler Supabase)
+  connectionTimeoutMillis: 5000, // Augmenter le timeout de connexion à 5s
+  allowExitOnIdle: true, // Permettre au pool de se fermer quand inactif
 });
 
-// Test de connexion
-pool.connect()
-  .then(() => console.log('✅ Connexion à PostgreSQL réussie'))
-  .catch(err => console.error('❌ Erreur de connexion PostgreSQL:', err));
+// Gestion des erreurs de pool
+pool.on('error', (err, client) => {
+  console.error('❌ Erreur inattendue du pool PostgreSQL:', err);
+  console.error('   Message:', err.message);
+  console.error('   Code:', err.code);
+});
+
+// Gestion de la reconnexion automatique
+pool.on('connect', (client) => {
+  console.log('🔌 Nouvelle connexion établie au pool');
+});
+
+pool.on('remove', (client) => {
+  console.log('🔌 Connexion retirée du pool');
+});
+
+// Test de connexion avec retry
+async function testConnection(retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const client = await pool.connect();
+      console.log('✅ Connexion à PostgreSQL réussie');
+      client.release();
+      return true;
+    } catch (err) {
+      console.error(`❌ Tentative ${i + 1}/${retries} échouée:`, err.message);
+      if (i < retries - 1) {
+        console.log('⏳ Nouvelle tentative dans 2 secondes...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  }
+  console.error('❌ Impossible de se connecter à PostgreSQL après', retries, 'tentatives');
+  return false;
+}
+
+testConnection();
 
 // Fonction pour obtenir les permissions basées sur le rôle
 function getPermissionsForRole(role: string) {
@@ -159,7 +197,7 @@ app.get('/', (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     // Vérifier la connexion à la base de données
-    await pool.query('SELECT 1');
+    await queryWithRetry(pool, 'SELECT 1');
     res.json({ 
       status: 'healthy', 
       database: 'connected',
@@ -726,6 +764,15 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Mot de passe incorrect' });
     }
 
+    // R�cup�rer les donn�es du tenant
+    const tenantResult = await pool.query(
+      'SELECT id, name, ncc, rccm, address, phone, email, logo_url FROM tenants WHERE id = $1',
+      [user.tenant_id]
+    );
+    
+    const tenant = tenantResult.rows.length > 0 ? tenantResult.rows[0] : null;
+    console.log('?? Donn�es tenant r�cup�r�es:', tenant ? { id: tenant.id, name: tenant.name, has_logo: !!tenant.logo_url } : 'aucun');
+
     // Retourner les données utilisateur (sans le mot de passe)
     const { password_hash: _, ...userWithoutPassword } = user;
     
@@ -737,7 +784,8 @@ app.post('/api/auth/login', async (req, res) => {
       firstName: user.first_name,
       lastName: user.last_name,
       assignedStoreId: user.assigned_store_id,
-      permissions
+      permissions,
+      tenant: tenant
     };
     
     console.log('✅ Connexion réussie pour:', username);
@@ -1015,7 +1063,7 @@ app.delete('/api/users/:id', async (req, res) => {
 app.patch('/api/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { email, first_name, last_name, role, assigned_store_id, permissions } = req.body;
+    const { email, phone, first_name, last_name, role, assigned_store_id, permissions } = req.body;
     
     console.log('✏️ Mise à jour utilisateur:', id);
 
@@ -1030,13 +1078,14 @@ app.patch('/api/users/:id', async (req, res) => {
     const result = await pool.query(
       `UPDATE users 
        SET email = COALESCE($1, email),
-           first_name = COALESCE($2, first_name),
-           last_name = COALESCE($3, last_name),
-           role = COALESCE($4, role),
-           assigned_store_id = $5
-       WHERE id = $6
+           phone = COALESCE($2, phone),
+           first_name = COALESCE($3, first_name),
+           last_name = COALESCE($4, last_name),
+           role = COALESCE($5, role),
+           assigned_store_id = $6
+       WHERE id = $7
        RETURNING *`,
-      [email, first_name, last_name, role, assigned_store_id, id]
+      [email, phone, first_name, last_name, role, assigned_store_id, id]
     );
 
     console.log('✅ Utilisateur mis à jour:', result.rows[0].username);
@@ -2002,9 +2051,9 @@ app.put('/api/settings/:tenantId', async (req, res) => {
 app.patch('/api/tenants/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { ncc, address } = req.body;
+    const { name, ncc, rccm, address, phone, email } = req.body;
 
-    console.log(`🏢 Mise à jour tenant ${id}:`, { ncc, address });
+    console.log(`🏢 Mise à jour tenant ${id}:`, { name, ncc, rccm, address, phone, email });
 
     // Vérifier que le tenant existe
     const tenantCheck = await pool.query(
@@ -2019,16 +2068,127 @@ app.patch('/api/tenants/:id', async (req, res) => {
     // Mettre à jour les informations
     const result = await pool.query(
       `UPDATE tenants 
-       SET ncc = $1, address = $2, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $3
+       SET name = COALESCE($1, name), 
+           ncc = $2, 
+           rccm = $3,
+           address = $4,
+           phone = $5,
+           email = $6,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $7
        RETURNING *`,
-      [ncc || null, address || null, id]
+      [name || null, ncc || null, rccm || null, address || null, phone || null, email || null, id]
     );
 
     console.log('✅ Tenant mis à jour:', result.rows[0]);
     res.json({ success: true, tenant: result.rows[0] });
   } catch (error) {
     console.error('❌ Erreur mise à jour tenant:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/tenants/:id/upload-logo - Upload du logo de l'entreprise
+app.post('/api/tenants/:id/upload-logo', upload.single('logo'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier fourni' });
+    }
+
+    console.log(`📤 Upload logo pour tenant ${id}:`, req.file.filename);
+
+    // Vérifier que le tenant existe
+    const tenantCheck = await pool.query(
+      'SELECT id, logo_url FROM tenants WHERE id = $1',
+      [id]
+    );
+
+    if (tenantCheck.rows.length === 0) {
+      // Supprimer le fichier uploadé si le tenant n'existe pas
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: 'Tenant non trouvé' });
+    }
+
+    // Supprimer l'ancien logo s'il existe
+    const oldLogoUrl = tenantCheck.rows[0].logo_url;
+    if (oldLogoUrl) {
+      const oldLogoPath = path.join(__dirname, oldLogoUrl);
+      if (fs.existsSync(oldLogoPath)) {
+        fs.unlinkSync(oldLogoPath);
+        console.log('🗑️ Ancien logo supprimé');
+      }
+    }
+
+    // Construire l'URL relative du logo
+    const logoUrl = `/uploads/logos/${req.file.filename}`;
+
+    // Mettre à jour la base de données
+    const result = await pool.query(
+      `UPDATE tenants 
+       SET logo_url = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING *`,
+      [logoUrl, id]
+    );
+
+    console.log('✅ Logo uploadé et sauvegardé:', logoUrl);
+    res.json({ 
+      success: true, 
+      logoUrl: logoUrl,
+      tenant: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Erreur upload logo:', error);
+    // Supprimer le fichier en cas d'erreur
+    if (req.file) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE /api/tenants/:id/logo - Supprimer le logo de l'entreprise
+app.delete('/api/tenants/:id/logo', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🗑️ Suppression logo pour tenant ${id}`);
+
+    // Récupérer le tenant
+    const tenantResult = await pool.query(
+      'SELECT id, logo_url FROM tenants WHERE id = $1',
+      [id]
+    );
+
+    if (tenantResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant non trouvé' });
+    }
+
+    const logoUrl = tenantResult.rows[0].logo_url;
+    
+    // Supprimer le fichier physique
+    if (logoUrl) {
+      const logoPath = path.join(__dirname, logoUrl);
+      if (fs.existsSync(logoPath)) {
+        fs.unlinkSync(logoPath);
+        console.log('✅ Fichier logo supprimé');
+      }
+    }
+
+    // Mettre à jour la base de données
+    await pool.query(
+      `UPDATE tenants 
+       SET logo_url = NULL, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [id]
+    );
+
+    console.log('✅ Logo supprimé de la base de données');
+    res.json({ success: true, message: 'Logo supprimé' });
+  } catch (error) {
+    console.error('❌ Erreur suppression logo:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -2051,7 +2211,7 @@ app.get('/api/sales', async (req, res) => {
               'imageUrl', p.image_url,
               'variantName', COALESCE(
                 (SELECT STRING_AGG(CONCAT(key, ': ', value), ', ')
-                 FROM json_each_text(pv.selected_options)),
+                 FROM jsonb_each_text(pv.selected_options)),
                 'Standard'
               ),
               'variant', json_build_object(
@@ -2084,11 +2244,20 @@ app.get('/api/sales', async (req, res) => {
     
     // Log d'un exemple de vente pour déboguer
     if (result.rows.length > 0) {
-      console.log('📦 Exemple de vente retournée:', {
+      console.log('📦 [DEBUG] Exemple de vente retournée:', {
         id: result.rows[0].id,
         items: result.rows[0].items,
-        itemsCount: result.rows[0].items?.length
+        itemsCount: result.rows[0].items?.length,
+        itemsType: typeof result.rows[0].items,
+        isArray: Array.isArray(result.rows[0].items)
       });
+      
+      // Log de la première vente complète pour debug
+      if (result.rows[0].items && result.rows[0].items.length > 0) {
+        console.log('📦 [DEBUG] Premier item:', result.rows[0].items[0]);
+      } else {
+        console.log('⚠️ [DEBUG] ITEMS EST UNDEFINED OU VIDE!');
+      }
     }
     
     console.log(`✅ ${result.rows.length} ventes récupérées`);
@@ -2285,6 +2454,27 @@ app.delete('/api/sales', async (req, res) => {
 });
 
 // Démarrage du serveur
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Backend POS running on http://localhost:${port}`);
+});
+
+// Gestion de l'arrêt gracieux
+process.on('SIGTERM', async () => {
+  console.log('🛑 SIGTERM reçu, arrêt gracieux...');
+  server.close(async () => {
+    console.log('🔌 Fermeture des connexions HTTP');
+    await pool.end();
+    console.log('🔌 Pool PostgreSQL fermé');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', async () => {
+  console.log('🛑 SIGINT reçu, arrêt gracieux...');
+  server.close(async () => {
+    console.log('🔌 Fermeture des connexions HTTP');
+    await pool.end();
+    console.log('🔌 Pool PostgreSQL fermé');
+    process.exit(0);
+  });
 });

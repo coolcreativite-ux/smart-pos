@@ -45,6 +45,9 @@ export interface Invoice {
   createdAt: Date;
   updatedAt: Date;
   createdBy: number;
+  createdByName?: string; // Nom du vendeur pour affichage
+  createdByEmail?: string; // Email du vendeur pour affichage
+  createdByPhone?: string; // Téléphone du vendeur pour affichage
 }
 
 export interface InvoiceItem {
@@ -277,6 +280,7 @@ export interface CompanyInfo {
   phone: string;
   email: string;
   ncc: string;
+  rccm?: string;
   logoUrl?: string;
 }
 

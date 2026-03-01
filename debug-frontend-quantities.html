@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Quantities</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .sale { border: 1px solid #ccc; margin: 10px 0; padding: 10px; }
+        .item { margin-left: 20px; padding: 5px; background: #f0f0f0; }
+        .error { color: red; font-weight: bold; }
+        .ok { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Debug Sales Quantities</h1>
+    <button onclick="checkLocalStorage()">Check LocalStorage</button>
+    <button onclick="checkAPI()">Check API</button>
+    <div id="output"></div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+
+        function checkLocalStorage() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<h2>LocalStorage Data:</h2>';
+            
+            const data = localStorage.getItem('globalSalesHistory');
+            if (!data) {
+                output.innerHTML += '<p>No data in localStorage</p>';
+                return;
+            }
+            
+            try {
+                const sales = JSON.parse(data);
+                output.innerHTML += `<p>Found ${sales.length} sales</p>`;
+                
+                sales.slice(0, 5).forEach(sale => {
+                    const saleDiv = document.createElement('div');
+                    saleDiv.className = 'sale';
+                    saleDiv.innerHTML = `
+                        <strong>Sale ID:</strong> ${sale.id}<br>
+                        <strong>Items:</strong> ${sale.items.length}<br>
+                    `;
+                    
+                    sale.items.forEach(item => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'item';
+                        const qtyType = typeof item.quantity;
+                        const qtyValue = item.quantity;
+                        const isWrong = qtyValue > 10 && qtyValue % 10 === 0;
+                        
+                        itemDiv.innerHTML = `
+                            <span class="${isWrong ? 'error' : 'ok'}">
+                                Quantity: ${qtyValue} (type: ${qtyType})
+                                ${isWrong ? ' ⚠️ SUSPICIOUS!' : ''}
+                            </span><br>
+                            Product: ${item.productName}<br>
+                            Price: ${item.variant.price}<br>
+                            Total: ${qtyValue * item.variant.price}
+                        `;
+                        saleDiv.appendChild(itemDiv);
+                    });
+                    
+                    output.appendChild(saleDiv);
+                });
+            } catch (e) {
+                output.innerHTML += `<p class="error">Error parsing: ${e.message}</p>`;
+            }
+        }
+
+        async function checkAPI() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<h2>API Data:</h2>';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/sales`);
+                const sales = await response.json();
+                
+                output.innerHTML += `<p>Found ${sales.length} sales</p>`;
+                
+                sales.slice(0, 5).forEach(sale => {
+                    const saleDiv = document.createElement('div');
+                    saleDiv.className = 'sale';
+                    saleDiv.innerHTML = `
+                        <strong>Sale ID:</strong> ${sale.id}<br>
+                        <strong>Items:</strong> ${sale.items.length}<br>
+                    `;
+                    
+                    sale.items.forEach(item => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'item';
+                        const qtyType = typeof item.quantity;
+                        const qtyValue = item.quantity;
+                        const isWrong = qtyValue > 10 && qtyValue % 10 === 0;
+                        
+                        itemDiv.innerHTML = `
+                            <span class="${isWrong ? 'error' : 'ok'}">
+                                Quantity: ${qtyValue} (type: ${qtyType})
+                                ${isWrong ? ' ⚠️ SUSPICIOUS!' : ''}
+                            </span><br>
+                            Product: ${item.productName}<br>
+                            Price: ${item.variant.price}<br>
+                            Total: ${qtyValue * item.variant.price}
+                        `;
+                        saleDiv.appendChild(itemDiv);
+                    });
+                    
+                    output.appendChild(saleDiv);
+                });
+            } catch (e) {
+                output.innerHTML += `<p class="error">Error: ${e.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Sales Cache</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #4338ca;
+        }
+        .success {
+            background: #10b981;
+            padding: 15px;
+            border-radius: 6px;
+            color: white;
+            margin-top: 20px;
+            display: none;
+        }
+        .info {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        code {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Nettoyer le cache des ventes</h1>
+        
+        <div class="info">
+            <strong>Pourquoi nettoyer le cache ?</strong>
+            <p>Le cache localStorage contient d'anciennes données de ventes qui peuvent afficher des quantités incorrectes. Cette page vous permet de nettoyer ces données obsolètes.</p>
+        </div>
+
+        <h3>Étape 1: Nettoyer le cache</h3>
+        <button onclick="clearSalesCache()">🗑️ Nettoyer globalSalesHistory</button>
+        <button onclick="clearAllCache()">🗑️ Nettoyer TOUT le localStorage</button>
+
+        <h3>Étape 2: Recharger l'application</h3>
+        <button onclick="reloadApp()">🔄 Recharger l'application</button>
+
+        <div id="success" class="success"></div>
+
+        <div class="info" style="margin-top: 30px;">
+            <strong>📋 Instructions complètes:</strong>
+            <ol>
+                <li>Redémarrez le serveur backend (Ctrl+C puis <code>npm run dev</code>)</li>
+                <li>Cliquez sur "Nettoyer globalSalesHistory" ci-dessus</li>
+                <li>Cliquez sur "Recharger l'application"</li>
+                <li>Vérifiez que les quantités s'affichent correctement dans l'historique des ventes</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        function clearSalesCache() {
+            try {
+                localStorage.removeItem('globalSalesHistory');
+                console.log('✅ globalSalesHistory cleared');
+                showSuccess('✅ Cache des ventes nettoyé avec succès!');
+            } catch (error) {
+                console.error('❌ Error clearing cache:', error);
+                alert('Erreur lors du nettoyage du cache: ' + error.message);
+            }
+        }
+
+        function clearAllCache() {
+            if (confirm('⚠️ Cela va supprimer TOUTES les données en cache (connexion, paramètres, etc.). Continuer ?')) {
+                try {
+                    localStorage.clear();
+                    console.log('✅ All localStorage cleared');
+                    showSuccess('✅ Tout le cache a été nettoyé!');
+                } catch (error) {
+                    console.error('❌ Error clearing cache:', error);
+                    alert('Erreur lors du nettoyage du cache: ' + error.message);
+                }
+            }
+        }
+
+        function reloadApp() {
+            window.location.href = 'http://localhost:5173';
+        }
+
+        // Log current cache size
+        console.log('📊 Current localStorage keys:', Object.keys(localStorage));
+        console.log('📊 globalSalesHistory size:', localStorage.getItem('globalSalesHistory')?.length || 0, 'characters');
+    </script>
+</body>
+</html>

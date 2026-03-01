@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Quantity Display</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+        .section {
+            background: #334155;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #6366f1;
+        }
+        h2 {
+            color: #818cf8;
+            margin-top: 0;
+        }
+        pre {
+            background: #1e293b;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid #475569;
+        }
+        .test {
+            background: #0f172a;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .pass { color: #10b981; }
+        .fail { color: #ef4444; }
+        .warn { color: #f59e0b; }
+        button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #4f46e5;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug: Quantity Display Issue</h1>
+    
+    <div class="section">
+        <h2>Test 1: API Response</h2>
+        <button onclick="testAPI()">Test API /api/sales</button>
+        <div id="api-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Test 2: Number Formatting</h2>
+        <button onclick="testFormatting()">Test Number Formatting</button>
+        <div id="format-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Test 3: LocalStorage Data</h2>
+        <button onclick="testLocalStorage()">Check LocalStorage</button>
+        <div id="storage-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Test 4: Type Conversions</h2>
+        <button onclick="testTypeConversions()">Test Type Conversions</button>
+        <div id="type-result"></div>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = '<p class="warn">⏳ Testing API...</p>';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/sales');
+                
+                if (!response.ok) {
+                    resultDiv.innerHTML = `<p class="fail">❌ API Error: ${response.status}</p>`;
+                    return;
+                }
+                
+                const sales = await response.json();
+                
+                if (sales.length === 0) {
+                    resultDiv.innerHTML = '<p class="warn">⚠️ No sales found</p>';
+                    return;
+                }
+                
+                const firstSale = sales[0];
+                const items = firstSale.items;
+                
+                let html = `<p class="pass">✅ API returned ${sales.length} sales</p>`;
+                html += `<div class="test">`;
+                html += `<p><strong>First Sale ID:</strong> ${firstSale.id}</p>`;
+                html += `<p><strong>Items:</strong> ${items ? 'Present' : 'UNDEFINED'}</p>`;
+                html += `<p><strong>Items Type:</strong> ${typeof items}</p>`;
+                html += `<p><strong>Items is Array:</strong> ${Array.isArray(items)}</p>`;
+                
+                if (items && items.length > 0) {
+                    const firstItem = items[0];
+                    html += `<p><strong>First Item:</strong></p>`;
+                    html += `<pre>${JSON.stringify(firstItem, null, 2)}</pre>`;
+                    html += `<p><strong>Quantity Value:</strong> ${firstItem.quantity}</p>`;
+                    html += `<p><strong>Quantity Type:</strong> ${typeof firstItem.quantity}</p>`;
+                    html += `<p><strong>Quantity as String:</strong> "${String(firstItem.quantity)}"</p>`;
+                    html += `<p><strong>Quantity Length:</strong> ${String(firstItem.quantity).length}</p>`;
+                    
+                    // Test if it's being displayed with extra zero
+                    const qtyStr = String(firstItem.quantity);
+                    if (qtyStr.endsWith('0') && qtyStr.length > 1) {
+                        html += `<p class="fail">⚠️ WARNING: Quantity ends with '0': "${qtyStr}"</p>`;
+                    }
+                } else {
+                    html += `<p class="fail">❌ No items in first sale!</p>`;
+                }
+                
+                html += `</div>`;
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="fail">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        function testFormatting() {
+            const resultDiv = document.getElementById('format-result');
+            
+            const testCases = [
+                { value: 1, expected: '1' },
+                { value: 2, expected: '2' },
+                { value: 10, expected: '10' },
+                { value: '2', expected: '2' },
+                { value: 2.0, expected: '2' },
+                { value: '2.0', expected: '2.0' }
+            ];
+            
+            let html = '<div class="test">';
+            
+            testCases.forEach(test => {
+                const result = String(test.value);
+                const pass = result === test.expected;
+                const className = pass ? 'pass' : 'fail';
+                html += `<p class="${className}">`;
+                html += `Value: ${JSON.stringify(test.value)} (${typeof test.value}) → "${result}" `;
+                html += pass ? '✅' : `❌ (expected "${test.expected}")`;
+                html += `</p>`;
+            });
+            
+            // Test Intl.NumberFormat
+            html += '<p><strong>Testing Intl.NumberFormat:</strong></p>';
+            const formatter = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
+            [1, 2, 10, 2.0, 2.5].forEach(num => {
+                html += `<p>${num} → "${formatter.format(num)}"</p>`;
+            });
+            
+            html += '</div>';
+            resultDiv.innerHTML = html;
+        }
+
+        function testLocalStorage() {
+            const resultDiv = document.getElementById('storage-result');
+            
+            try {
+                const salesData = localStorage.getItem('globalSalesHistory');
+                
+                if (!salesData) {
+                    resultDiv.innerHTML = '<p class="warn">⚠️ No globalSalesHistory in localStorage</p>';
+                    return;
+                }
+                
+                const sales = JSON.parse(salesData);
+                
+                let html = `<p class="pass">✅ Found ${sales.length} sales in localStorage</p>`;
+                html += `<div class="test">`;
+                
+                if (sales.length > 0) {
+                    const firstSale = sales[0];
+                    html += `<p><strong>First Sale:</strong></p>`;
+                    html += `<pre>${JSON.stringify(firstSale, null, 2).substring(0, 1000)}...</pre>`;
+                    
+                    if (firstSale.items && firstSale.items.length > 0) {
+                        const firstItem = firstSale.items[0];
+                        html += `<p><strong>First Item Quantity:</strong> ${firstItem.quantity} (${typeof firstItem.quantity})</p>`;
+                    }
+                }
+                
+                html += '</div>';
+                html += '<button onclick="clearCache()">Clear Cache</button>';
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="fail">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        function clearCache() {
+            localStorage.removeItem('globalSalesHistory');
+            alert('✅ Cache cleared! Reload the app.');
+        }
+
+        function testTypeConversions() {
+            const resultDiv = document.getElementById('type-result');
+            
+            let html = '<div class="test">';
+            html += '<p><strong>Testing potential conversion issues:</strong></p>';
+            
+            // Test parseFloat with different inputs
+            const testValues = [1, 2, '1', '2', '10', '2.0', 2.0, 10];
+            
+            testValues.forEach(val => {
+                const parsed = parseFloat(val);
+                const formatted = parsed.toFixed(0);
+                html += `<p>parseFloat(${JSON.stringify(val)}) = ${parsed} → toFixed(0) = "${formatted}"</p>`;
+            });
+            
+            html += '<p><strong>Testing multiplication:</strong></p>';
+            [1, 2, 3].forEach(num => {
+                html += `<p>${num} * 10 = ${num * 10}</p>`;
+            });
+            
+            html += '<p><strong>Testing string concatenation:</strong></p>';
+            [1, 2, 3].forEach(num => {
+                html += `<p>String(${num}) + "0" = "${String(num) + '0'}"</p>`;
+            });
+            
+            html += '</div>';
+            resultDiv.innerHTML = html;
+        }
+
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            console.log('🔍 Debug page loaded');
+        });
+    </script>
+</body>
+</html>

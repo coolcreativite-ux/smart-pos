@@ -64,6 +64,32 @@ export function InvoiceGenerator({
   const [showProductSelector, setShowProductSelector] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
+  // S'assurer que tous les items ont un tempId unique
+  useEffect(() => {
+    if (formData.items.some(item => !item.tempId)) {
+      setFormData(prev => ({
+        ...prev,
+        items: prev.items.map(item => ({
+          ...item,
+          tempId: item.tempId || `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        }))
+      }));
+    }
+  }, [formData.items]);
+
+  // S'assurer que toutes les taxes ont un tempId unique
+  useEffect(() => {
+    if (formData.additionalTaxes.some(tax => !tax.tempId)) {
+      setFormData(prev => ({
+        ...prev,
+        additionalTaxes: prev.additionalTaxes.map(tax => ({
+          ...tax,
+          tempId: tax.tempId || `tax-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        }))
+      }));
+    }
+  }, [formData.additionalTaxes]);
+
   // Calculer les totaux en temps réel avec debounce
   const totals = useMemo(() => {
     const taxesWithTimbre = addTimbreIfCash(
@@ -130,6 +156,7 @@ export function InvoiceGenerator({
    */
   const handleAddItem = (product: any, variant: any) => {
     const newItem: InvoiceItemInput = {
+      tempId: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       productId: product.id,
       variantId: variant.id,
       productName: product.name,
@@ -394,7 +421,7 @@ export function InvoiceGenerator({
               <div className="space-y-3">
                 {formData.items.map((item, index) => (
                   <InvoiceItemRow
-                    key={index}
+                    key={item.tempId || `item-${index}`}
                     item={item}
                     index={index}
                     onUpdate={handleUpdateItem}
@@ -451,7 +478,7 @@ export function InvoiceGenerator({
                     </label>
                     <div className="space-y-2">
                       {formData.additionalTaxes.map((tax, index) => (
-                        <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <div key={tax.tempId || `tax-${index}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                           <span className="flex-1 text-sm font-medium text-gray-700">
                             {tax.name}
                           </span>

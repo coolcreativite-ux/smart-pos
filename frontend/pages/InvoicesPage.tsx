@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { InvoiceGenerator } from '../components/invoices/InvoiceGenerator';
 import { InvoiceHistory } from '../components/invoices/InvoiceHistory';
 import { InvoiceDetailsModal } from '../components/invoices/InvoiceDetailsModal';
-import { InvoiceDebug } from '../components/invoices/InvoiceDebug';
 import { useInvoice } from '../contexts/InvoiceContext';
 import { DocumentType } from '../types/invoice.types';
 import { UserRole } from '../types';
@@ -110,9 +109,6 @@ export default function InvoicesPage() {
           </button>
         </div>
       </div>
-
-      {/* Debug component - temporary */}
-      <InvoiceDebug />
 
       {/* Historique avec filtres et pagination */}
       <InvoiceHistory onViewDetails={handleViewDetails} />

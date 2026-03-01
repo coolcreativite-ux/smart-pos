@@ -42,6 +42,7 @@ export interface InvoiceFormData {
 }
 
 export interface InvoiceItemInput {
+  tempId?: string; // ID temporaire pour React keys
   productId: number;
   variantId: number;
   productName: string;
@@ -53,6 +54,7 @@ export interface InvoiceItemInput {
 }
 
 export interface AdditionalTax {
+  tempId?: string; // ID temporaire pour React keys
   name: string;
   amount: number;
 }

@@ -16,16 +16,15 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [toastCounter, setToastCounter] = useState(0);
 
   const addToast = useCallback((message: string, type: ToastType) => {
-    const id = Date.now() + toastCounter;
-    setToastCounter(prev => prev + 1);
+    // Génération d'ID unique avec timestamp + random string
+    const id = Date.now() + Math.random();
     setToasts(prevToasts => [...prevToasts, { id, message, type }]);
     setTimeout(() => {
       removeToast(id);
     }, 3000);
-  }, [toastCounter]);
+  }, []);
 
   const removeToast = (id: number) => {
     setToasts(prevToasts => prevToasts.filter(toast => toast.id !== id));

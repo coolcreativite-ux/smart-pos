@@ -91,7 +91,7 @@ export class ValidationService {
         });
       }
     } else {
-      // B2C, B2F, B2G: nom, téléphone, email requis
+      // B2C, B2F, B2G: nom requis, téléphone et email optionnels
       if (!data.customerData.name || data.customerData.name.trim() === '') {
         errors.push({
           field: 'customerData.name',
@@ -99,28 +99,24 @@ export class ValidationService {
         });
       }
 
-      if (!data.customerData.phone || data.customerData.phone.trim() === '') {
-        errors.push({
-          field: 'customerData.phone',
-          message: 'Téléphone du client requis'
-        });
-      } else if (!this.validatePhone(data.customerData.phone)) {
-        errors.push({
-          field: 'customerData.phone',
-          message: 'Format de téléphone invalide'
-        });
+      // Téléphone optionnel mais si fourni, doit être valide
+      if (data.customerData.phone && data.customerData.phone.trim() !== '') {
+        if (!this.validatePhone(data.customerData.phone)) {
+          errors.push({
+            field: 'customerData.phone',
+            message: 'Format de téléphone invalide'
+          });
+        }
       }
 
-      if (!data.customerData.email || data.customerData.email.trim() === '') {
-        errors.push({
-          field: 'customerData.email',
-          message: 'Email du client requis'
-        });
-      } else if (!this.validateEmail(data.customerData.email)) {
-        errors.push({
-          field: 'customerData.email',
-          message: 'Format d\'email invalide'
-        });
+      // Email optionnel mais si fourni, doit être valide
+      if (data.customerData.email && data.customerData.email.trim() !== '') {
+        if (!this.validateEmail(data.customerData.email)) {
+          errors.push({
+            field: 'customerData.email',
+            message: 'Format d\'email invalide'
+          });
+        }
       }
     }
 

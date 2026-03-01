@@ -179,7 +179,10 @@ export function addTimbreIfCash(
 /**
  * Formate un montant en FCFA
  */
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return '0 FCFA';
+  }
   return `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} FCFA`;
 }
 
